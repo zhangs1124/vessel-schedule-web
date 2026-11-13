@@ -1,0 +1,1106 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>萬海航運每週船期即時報表 (Wan Hai Schedule)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- jQuery & DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --primary: #0284c7;
+            --primary-hover: #0369a1;
+            --primary-light: #e0f2fe;
+            --status-actual-bg: #dcfce7;
+            --status-actual-text: #15803d;
+            --status-est-bg: #e0f2fe;
+            --status-est-text: #0369a1;
+            --status-skip-bg: #fee2e2;
+            --status-skip-text: #b91c1c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1560px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: var(--card-bg);
+            padding: 24px 28px;
+            border-radius: 14px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-title h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-title p {
+            color: var(--text-muted);
+            font-size: 13.5px;
+            margin-top: 6px;
+        }
+
+        .header-badges {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .stats-badge {
+            background: #f1f5f9;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13.5px;
+            font-weight: 600;
+            color: #334155;
+            border: 1px solid var(--border-color);
+        }
+
+        .stats-badge.highlight {
+            background: var(--primary-light);
+            color: var(--primary-hover);
+            border-color: #bae6fd;
+        }
+
+        /* 頁簽樣式 (Tab Navigation) */
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 4px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px 10px 0 0;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+            background: rgba(2, 132, 199, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            background: var(--card-bg);
+            border-bottom: 3px solid var(--primary);
+            margin-bottom: -6px;
+            box-shadow: 0 -2px 6px rgba(0,0,0,0.03);
+        }
+
+        .tab-counter {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .tab-btn.active .tab-counter {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        /* 資訊提示盒 */
+        .info-callout {
+            background: #eff6ff;
+            border-left: 4px solid var(--primary);
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 18px;
+            font-size: 13.5px;
+            color: #1e40af;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .info-callout strong {
+            color: #1d4ed8;
+        }
+
+        /* 控制面板 (Filter Bar) */
+        .control-panel {
+            background: var(--card-bg);
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            min-width: 70px;
+        }
+
+        .btn-chip {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            color: #475569;
+        }
+
+        .btn-chip:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-chip.active {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #475569;
+            cursor: pointer;
+        }
+
+        .checkbox-label input {
+            cursor: pointer;
+        }
+
+        .export-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        .btn-export {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn-export-excel {
+            background: #107c41;
+            color: #ffffff;
+            box-shadow: 0 1px 2px rgba(16, 124, 65, 0.2);
+        }
+
+        .btn-export-excel:hover {
+            background: #0c5e31;
+        }
+
+        .btn-export-csv {
+            background: #f8fafc;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+
+        .btn-export-csv:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        .btn-export-workbook {
+            background: #0284c7;
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13.5px;
+        }
+
+        .btn-export-workbook:hover {
+            background: #0369a1;
+        }
+
+        /* 卡片與表格 */
+        .table-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* DataTables 自訂化風格美化 */
+        table.dataTable {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 13.5px;
+            margin-top: 12px !important;
+            margin-bottom: 14px !important;
+        }
+
+        table.dataTable thead th {
+            background-color: #f8fafc;
+            color: #334155;
+            font-weight: 600;
+            padding: 12px 14px !important;
+            border-bottom: 2px solid var(--border-color) !important;
+            white-space: nowrap;
+        }
+
+        table.dataTable tbody td {
+            padding: 11px 14px !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        table.dataTable tbody tr:hover {
+            background-color: #f1f5f9 !important;
+        }
+
+        /* 標籤元件 (Badges) */
+        .badge-status {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .status-actual {
+            background-color: var(--status-actual-bg);
+            color: var(--status-actual-text);
+        }
+
+        .status-estimated, .status-planned {
+            background-color: var(--status-est-bg);
+            color: var(--status-est-text);
+        }
+
+        .status-skip {
+            background-color: var(--status-skip-bg);
+            color: var(--status-skip-text);
+        }
+
+        .vessel-tag {
+            font-weight: 600;
+            color: #0369a1;
+        }
+
+        .carrier-tag {
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11.5px;
+        }
+
+        .carrier-yml {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .carrier-whl {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .port-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+
+        .port-code-badge {
+            display: inline-block;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-weight: 700;
+            font-size: 12.5px;
+            padding: 2px 8px;
+            border-radius: 5px;
+            border: 1px solid #bae6fd;
+            letter-spacing: 0.5px;
+        }
+
+        .port-zh {
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .countdown-tag {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .countdown-urgent {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .countdown-soon {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .countdown-normal {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        /* DataTables Controls 優化 */
+        .dataTables_wrapper .dataTables_length,
+        .dataTables_wrapper .dataTables_filter {
+            margin-bottom: 12px;
+            font-size: 13.5px;
+            color: var(--text-muted);
+        }
+
+        .dataTables_wrapper .dataTables_filter input {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 12px;
+            outline: none;
+            margin-left: 8px;
+        }
+
+        .dataTables_wrapper .dataTables_filter input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15);
+        }
+
+        .dataTables_wrapper .dataTables_paginate {
+            margin-top: 14px;
+            font-size: 13px;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: var(--primary) !important;
+            color: #fff !important;
+            border-color: var(--primary) !important;
+            border-radius: 6px;
+        }
+
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: #e2e8f0 !important;
+            color: #0f172a !important;
+            border-color: transparent !important;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 頁首與狀態資訊 -->
+        <header>
+            <div class="header-title">
+                <h1>🚢 萬海航運每週船期即時報表 (Wan Hai Schedule)</h1>
+                <p>資料更新時間：<strong>2026-11-13 01:53:56</strong> | 來源檔案：<strong>wanhai_schedule.csv</strong></p>
+            </div>
+            <div class="header-badges">
+                <div class="stats-badge highlight" id="badgeFocusCount">重點港口近期待泊：計算中...</div>
+                <div class="stats-badge" id="badgeTotalCount">總船期紀錄：0 筆</div>
+                <button class="btn-export btn-export-workbook" onclick="exportFullWorkbook()">
+                    📦 匯出雙頁簽完整 Excel (.xlsx)
+                </button>
+            </div>
+        </header>
+
+        <!-- 主頁簽導航 (Tab Navigation) -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" id="tabBtnFocus" onclick="switchMainTab('focus')">
+                <span>📌 重點港口近期待泊 (Upcoming Focus Ports)</span>
+                <span class="tab-counter" id="tabCounterFocus">0</span>
+            </button>
+            <button class="tab-btn" id="tabBtnAll" onclick="switchMainTab('all')">
+                <span>📋 全船隊完整明細 (All Fleet Detail)</span>
+                <span class="tab-counter" id="tabCounterAll">0</span>
+            </button>
+        </nav>
+
+        <!-- ======================= TAB 1: 重點港口近期待泊 ======================= -->
+        <section id="tabContentFocus" class="tab-content active">
+            <div class="info-callout">
+                <div>
+                    <strong>🎯 視圖規則：</strong>依據 <code>port.txt</code> 港口白名單，自動過濾 <strong>≧ 今日 (<span id="todayDateStr"></span>)</strong> 之船期。
+                    每艘船舶在各目標港口僅保留<strong>「離今天最近的第 1 筆」</strong>即將靠泊紀錄（排除已過期的歷史航次）。
+                </div>
+            </div>
+
+            <!-- 篩選列 -->
+            <div class="control-panel">
+                <div class="filter-row">
+                    <span class="filter-label">船公司：</span>
+                    <button class="btn-chip active" onclick="setFocusCarrierFilter('ALL', this)">全部</button>
+                    <button class="btn-chip" onclick="setFocusCarrierFilter('陽明海運', this)">陽明海運 (YML)</button>
+                    <button class="btn-chip" onclick="setFocusCarrierFilter('萬海航運', this)">萬海航運 (WHL)</button>
+                    
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="chkFocusHideSkip" onchange="applyFocusFilters()">
+                        隱藏跳港 (Hide SKIP)
+                    </label>
+
+                    <div class="export-actions">
+                        <button class="btn-export btn-export-excel" onclick="exportTableToExcel('focus')">
+                            📥 匯出當前篩選 Excel (.xlsx)
+                        </button>
+                        <button class="btn-export btn-export-csv" onclick="exportTableToCsv('focus')">
+                            📄 匯出 CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="filter-row" id="portChipsContainer">
+                    <span class="filter-label">目標港口：</span>
+                    <button class="btn-chip active" onclick="setFocusPortFilter('ALL', this)">全部港口</button>
+                    <!-- 動態由 targetPorts 產生各港口 Chips -->
+                </div>
+            </div>
+
+            <!-- 重點港口表格 -->
+            <div class="table-card">
+                <table id="focusTable" class="display responsive nowrap" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>船公司</th>
+                            <th>船名</th>
+                            <th>港口代碼</th>
+                            <th>目標港口</th>
+                            <th>預計抵達 (Arrival ETA)</th>
+                            <th>狀態</th>
+                        </tr>
+                    </thead>
+                    <tbody id="focusTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ======================= TAB 2: 全船隊完整明細 ======================= -->
+        <section id="tabContentAll" class="tab-content">
+            <!-- 篩選列 -->
+            <div class="control-panel">
+                <div class="filter-row">
+                    <span class="filter-label">船公司：</span>
+                    <button class="btn-chip active" onclick="setAllCarrierFilter('ALL', this)">全部顯示</button>
+                    <button class="btn-chip" onclick="setAllCarrierFilter('陽明海運', this)">陽明海運 (YML)</button>
+                    <button class="btn-chip" onclick="setAllCarrierFilter('萬海航運', this)">萬海航運 (WHL)</button>
+
+                    <div class="export-actions">
+                        <button class="btn-export btn-export-excel" onclick="exportTableToExcel('all')">
+                            📥 匯出當前篩選 Excel (.xlsx)
+                        </button>
+                        <button class="btn-export btn-export-csv" onclick="exportTableToCsv('all')">
+                            📄 匯出 CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 完整總表表格 -->
+            <div class="table-card">
+                <table id="allTable" class="display responsive nowrap" style="width:100%">
+                    <thead>
+                        <tr id="allTableHeader"></tr>
+                    </thead>
+                    <tbody id="allTableBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- 載入 jQuery、DataTables 與 SheetJS (純前端 Excel 產生引擎) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script>
+        // 資料注入區
+        const rawData = [{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"BANGKOK","InVoyage":"S063","ETA":"2026/09/25 15:00","Berth":"-","OutVoyage":"N064","ETD":"2026/09/25 15:00","Status":"SKIP"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"LAEM CHABANG","InVoyage":"S063","ETA":"2026/09/30 00:30","Berth":"2026/09/30 03:00","OutVoyage":"N064","ETD":"2026/10/02 12:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"NANSHA NEW PORT","InVoyage":"N064","ETA":"2026/10/06 15:00","Berth":"2026/10/07 15:24","OutVoyage":"N064","ETD":"2026/10/07 23:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"HONG KONG","InVoyage":"N064","ETA":"2026/10/08 06:00","Berth":"2026/10/08 09:00","OutVoyage":"N064","ETD":"2026/10/08 20:08","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"KAOHSIUNG","InVoyage":"N064","ETA":"2026/10/09 19:00","Berth":"2026/10/09 21:30","OutVoyage":"N064","ETD":"2026/10/10 10:24","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"TAIPEI","InVoyage":"N064","ETA":"2026/10/11 00:06","Berth":"2026/10/11 02:26","OutVoyage":"N064","ETD":"2026/10/11 11:20","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"OSAKA","InVoyage":"N064","ETA":"2026/10/11 13:30","Berth":"-","OutVoyage":"S064","ETD":"2026/10/11 13:30","Status":"SKIP"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"MOJI","InVoyage":"N064","ETA":"2026/10/13 12:36","Berth":"2026/10/13 15:06","OutVoyage":"S064","ETD":"2026/10/14 18:24","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"HAKATA","InVoyage":"N064","ETA":"2026/10/14 20:00","Berth":"-","OutVoyage":"S064","ETD":"2026/10/14 20:00","Status":"SKIP"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"TOKUYAMA","InVoyage":"N064","ETA":"2026/10/14 21:00","Berth":"2026/10/15 16:45","OutVoyage":"S064","ETD":"2026/10/16 11:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"TAIPEI","InVoyage":"S064","ETA":"2026/10/18 13:00","Berth":"2026/10/18 14:30","OutVoyage":"S064","ETD":"2026/10/18 23:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"KAOHSIUNG","InVoyage":"S064","ETA":"2026/10/19 12:00","Berth":"2026/10/20 07:30","OutVoyage":"S064","ETD":"2026/10/20 19:36","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"SHEKOU","InVoyage":"S064","ETA":"2026/10/21 18:00","Berth":"2026/10/21 23:30","OutVoyage":"S064","ETD":"2026/10/23 04:52","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"LAEM CHABANG","InVoyage":"S064","ETA":"2026/10/27 01:00","Berth":"2026/10/27 02:00","OutVoyage":"S064","ETD":"2026/10/27 19:08","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"BANGKOK","InVoyage":"S064","ETA":"2026/10/27 21:00","Berth":"2026/10/28 08:42","OutVoyage":"N065","ETD":"2026/10/30 06:00","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"LAEM CHABANG","InVoyage":"N065","ETA":"2026/10/30 10:00","Berth":"2026/10/30 11:36","OutVoyage":"N065","ETD":"2026/10/31 00:45","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"NANSHA NEW PORT","InVoyage":"N065","ETA":"2026/11/03 23:00","Berth":"2026/11/04 19:15","OutVoyage":"N065","ETD":"2026/11/05 06:20","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"HONG KONG","InVoyage":"N065","ETA":"2026/11/05 07:00","Berth":"-","OutVoyage":"N065","ETD":"2026/11/05 07:00","Status":"SKIP"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"KAOHSIUNG","InVoyage":"N065","ETA":"2026/11/06 06:00","Berth":"2026/11/06 08:34","OutVoyage":"N065","ETD":"2026/11/07 05:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"TAIPEI","InVoyage":"N065","ETA":"2026/11/07 20:00","Berth":"2026/11/07 21:24","OutVoyage":"N065","ETD":"2026/11/08 09:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"OSAKA","InVoyage":"N065","ETA":"2026/11/10 21:00","Berth":"2026/11/10 23:59","OutVoyage":"S065","ETD":"2026/11/11 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"TOKUYAMA","InVoyage":"N065","ETA":"2026/11/12 08:00","Berth":"-","OutVoyage":"S065","ETD":"2026/11/13 00:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"HAKATA","InVoyage":"N065","ETA":"2026/11/13 01:00","Berth":"-","OutVoyage":"S065","ETD":"2026/11/13 01:00","Status":"SKIP"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"MOJI","InVoyage":"N065","ETA":"2026/11/13 06:00","Berth":"-","OutVoyage":"S065","ETD":"2026/11/14 10:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"TAIPEI","InVoyage":"S065","ETA":"2026/11/16 05:00","Berth":"-","OutVoyage":"S065","ETD":"2026/11/16 14:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"KAOHSIUNG","InVoyage":"S065","ETA":"2026/11/17 04:00","Berth":"-","OutVoyage":"S065","ETD":"2026/11/17 19:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"SHEKOU","InVoyage":"S065","ETA":"2026/11/18 20:00","Berth":"-","OutVoyage":"S065","ETD":"2026/11/19 15:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"LAEM CHABANG","InVoyage":"S065","ETA":"2026/11/23 14:00","Berth":"-","OutVoyage":"S065","ETD":"2026/11/24 02:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"BANGKOK","InVoyage":"S065","ETA":"2026/11/24 07:00","Berth":"-","OutVoyage":"N066","ETD":"2026/11/26 05:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"LAEM CHABANG","InVoyage":"N066","ETA":"2026/11/26 11:00","Berth":"-","OutVoyage":"N066","ETD":"2026/11/27 08:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"NANSHA NEW PORT","InVoyage":"N066","ETA":"2026/12/01 04:00","Berth":"-","OutVoyage":"N066","ETD":"2026/12/01 19:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"HONG KONG","InVoyage":"N066","ETA":"2026/12/01 19:00","Berth":"-","OutVoyage":"N066","ETD":"2026/12/01 19:00","Status":"SKIP"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"KAOHSIUNG","InVoyage":"N066","ETA":"2026/12/02 19:00","Berth":"-","OutVoyage":"N066","ETD":"2026/12/03 08:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"TAIPEI","InVoyage":"N066","ETA":"2026/12/03 23:00","Berth":"-","OutVoyage":"N066","ETD":"2026/12/04 11:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"OSAKA","InVoyage":"N066","ETA":"2026/12/07 04:00","Berth":"-","OutVoyage":"S066","ETD":"2026/12/07 21:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"MOJI","InVoyage":"N066","ETA":"2026/12/08 18:00","Berth":"-","OutVoyage":"S066","ETD":"2026/12/09 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"HAKATA","InVoyage":"N066","ETA":"2026/12/10 01:00","Berth":"-","OutVoyage":"S066","ETD":"2026/12/10 10:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"TOKUYAMA","InVoyage":"N066","ETA":"2026/12/10 18:00","Berth":"-","OutVoyage":"S066","ETD":"2026/12/11 10:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"TAIPEI","InVoyage":"S066","ETA":"2026/12/13 10:00","Berth":"-","OutVoyage":"S066","ETD":"2026/12/13 19:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"KAOHSIUNG","InVoyage":"S066","ETA":"2026/12/14 09:00","Berth":"-","OutVoyage":"S066","ETD":"2026/12/15 00:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"SHEKOU","InVoyage":"S066","ETA":"2026/12/16 01:00","Berth":"-","OutVoyage":"S066","ETD":"2026/12/16 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 276","VesselCode":"27F","Lane":"Japan Kansai-Thailand Service (JST)","Port":"LAEM CHABANG","InVoyage":"S066","ETA":"2026/12/20 19:00","Berth":"-","OutVoyage":"S066","ETD":"2026/12/21 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"QINGDAO","InVoyage":"N041","ETA":"2026/08/17 15:48","Berth":"2026/08/19 16:18","OutVoyage":"W042","ETD":"2026/08/19 22:24","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"SHANGHAI","InVoyage":"N041","ETA":"2026/08/20 07:00","Berth":"-","OutVoyage":"W042","ETD":"2026/08/20 07:00","Status":"SKIP"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"NINGBO","InVoyage":"E041","ETA":"2026/08/21 13:30","Berth":"2026/08/24 19:54","OutVoyage":"W042","ETD":"2026/08/25 08:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"NANSHA NEW PORT","InVoyage":"E041","ETA":"2026/08/27 14:36","Berth":"2026/08/29 19:06","OutVoyage":"W042","ETD":"2026/08/30 07:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"PORT KLANG WEST PORT","InVoyage":"W042","ETA":"2026/09/03 00:00","Berth":"-","OutVoyage":"W042","ETD":"2026/09/03 18:00","Status":"SKIP"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W042","ETA":"2026/09/04 09:30","Berth":"2026/09/05 08:48","OutVoyage":"W042","ETD":"2026/09/06 02:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"NHAVA SHEVA","InVoyage":"W042","ETA":"2026/09/13 08:30","Berth":"2026/09/15 01:30","OutVoyage":"E042","ETD":"2026/09/15 16:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"COCHIN","InVoyage":"W042","ETA":"2026/09/17 11:30","Berth":"2026/09/18 14:54","OutVoyage":"E042","ETD":"2026/09/19 18:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"PORT KLANG NORTH PORT","InVoyage":"E042","ETA":"2026/09/24 10:00","Berth":"2026/09/24 16:42","OutVoyage":"E042","ETD":"2026/09/26 02:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"QINGDAO","InVoyage":"E042","ETA":"2026/10/02 18:00","Berth":"2026/10/04 05:48","OutVoyage":"E042","ETD":"2026/10/04 23:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"QINGDAO","InVoyage":"S042","ETA":"2026/10/02 18:00","Berth":"2026/10/04 05:48","OutVoyage":"W043","ETD":"2026/10/04 23:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"NINGBO","InVoyage":"E042","ETA":"2026/10/06 13:30","Berth":"2026/10/06 17:54","OutVoyage":"W043","ETD":"2026/10/07 07:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"SHEKOU","InVoyage":"W043","ETA":"2026/10/09 19:24","Berth":"2026/10/10 07:24","OutVoyage":"W043","ETD":"2026/10/11 02:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"HAIPHONG","InVoyage":"W043","ETA":"2026/10/11 09:00","Berth":"-","OutVoyage":"W043","ETD":"2026/10/11 09:00","Status":"SKIP"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W043","ETA":"2026/10/15 15:00","Berth":"2026/10/17 07:48","OutVoyage":"W043","ETD":"2026/10/18 09:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"NHAVA SHEVA","InVoyage":"W043","ETA":"2026/10/25 08:48","Berth":"2026/10/27 04:48","OutVoyage":"E043","ETD":"2026/10/28 20:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"SHEKOU","InVoyage":"E043","ETA":"2026/11/08 22:30","Berth":"2026/11/09 03:56","OutVoyage":"E043","ETD":"2026/11/10 04:30","Status":"ESTIMATED"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"SHEKOU","InVoyage":"N044","ETA":"2026/11/08 23:30","Berth":"2026/11/09 04:56","OutVoyage":"N044","ETD":"2026/11/10 04:30","Status":"ESTIMATED"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"NINGBO","InVoyage":"E043","ETA":"2026/11/12 07:00","Berth":"-","OutVoyage":"W044","ETD":"2026/11/13 23:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"XIAMEN","InVoyage":"E043","ETA":"2026/11/15 05:30","Berth":"-","OutVoyage":"W044","ETD":"2026/11/15 23:30","Status":"ESTIMATED"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"SHEKOU","InVoyage":"W044","ETA":"2026/11/16 21:00","Berth":"-","OutVoyage":"W044","ETD":"2026/11/17 19:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"NANSHA NEW PORT","InVoyage":"E043","ETA":"2026/11/17 20:30","Berth":"-","OutVoyage":"W044","ETD":"2026/11/19 04:30","Status":"ESTIMATED"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"JEDDAH","InVoyage":"W044","ETA":"2026/12/05 02:30","Berth":"-","OutVoyage":"E044","ETD":"2026/12/07 14:30","Status":"ESTIMATED"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"AQABA","InVoyage":"W044","ETA":"2026/12/09 04:30","Berth":"-","OutVoyage":"E044","ETD":"2026/12/11 04:30","Status":"ESTIMATED"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"SOKHNA PORT","InVoyage":"W044","ETA":"2026/12/11 04:30","Berth":"-","OutVoyage":"E044","ETD":"2026/12/11 04:30","Status":"SKIP"},{"VesselName":"WAN HAI 309","VesselCode":"39","Lane":"EXTRA LOADER FOR INDIA (INX)","Port":"SHEKOU","InVoyage":"E044","ETA":"2026/12/29 01:00","Berth":"-","OutVoyage":"E044","ETD":"2026/12/30 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"CAT LAI PORT HOCHIMINH","InVoyage":"E246","ETA":"2026/10/06 06:00","Berth":"2026/10/06 12:18","OutVoyage":"W247","ETD":"2026/10/07 05:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"LAEM CHABANG","InVoyage":"E246","ETA":"2026/10/09 01:30","Berth":"2026/10/09 03:30","OutVoyage":"W247","ETD":"2026/10/10 07:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"SINGAPORE","InVoyage":"W247","ETA":"2026/10/15 01:30","Berth":"2026/10/15 04:54","OutVoyage":"W247","ETD":"2026/10/16 09:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W247","ETA":"2026/10/17 00:18","Berth":"2026/10/18 07:42","OutVoyage":"W247","ETD":"2026/10/18 22:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"CHENNAI","InVoyage":"W247","ETA":"2026/10/23 10:00","Berth":"2026/10/23 12:54","OutVoyage":"E247","ETD":"2026/10/24 16:36","Status":"ACTUAL"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"VIZAG","InVoyage":"W247","ETA":"2026/10/25 12:00","Berth":"-","OutVoyage":"E247","ETD":"2026/10/25 12:00","Status":"SKIP"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"PORT KLANG NORTH PORT","InVoyage":"E247","ETA":"2026/10/29 12:00","Berth":"2026/10/31 10:36","OutVoyage":"E247","ETD":"2026/11/01 20:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"SINGAPORE","InVoyage":"E247","ETA":"2026/11/03 11:00","Berth":"2026/11/03 16:24","OutVoyage":"E247","ETD":"2026/11/04 12:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"CAT LAI PORT HOCHIMINH","InVoyage":"E247","ETA":"2026/11/06 09:18","Berth":"2026/11/06 15:06","OutVoyage":"W248","ETD":"2026/11/07 15:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"LAEM CHABANG","InVoyage":"E247","ETA":"2026/11/09 10:30","Berth":"2026/11/09 12:36","OutVoyage":"W248","ETD":"2026/11/10 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"SINGAPORE","InVoyage":"W248","ETA":"2026/11/12 10:00","Berth":"-","OutVoyage":"W248","ETD":"2026/11/13 11:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W248","ETA":"2026/11/14 00:00","Berth":"-","OutVoyage":"W248","ETD":"2026/11/15 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"CHENNAI","InVoyage":"W248","ETA":"2026/11/18 19:30","Berth":"-","OutVoyage":"E248","ETD":"2026/11/20 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"VIZAG","InVoyage":"W248","ETA":"2026/11/21 17:00","Berth":"-","OutVoyage":"E248","ETD":"2026/11/22 19:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"PORT KLANG NORTH PORT","InVoyage":"E248","ETA":"2026/11/26 12:00","Berth":"-","OutVoyage":"E248","ETD":"2026/11/27 15:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"SINGAPORE","InVoyage":"E248","ETA":"2026/11/27 15:00","Berth":"-","OutVoyage":"E248","ETD":"2026/11/27 15:00","Status":"SKIP"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"CAT LAI PORT HOCHIMINH","InVoyage":"E248","ETA":"2026/11/29 18:00","Berth":"-","OutVoyage":"W249","ETD":"2026/11/30 14:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"LAEM CHABANG","InVoyage":"E248","ETA":"2026/12/02 06:00","Berth":"-","OutVoyage":"W249","ETD":"2026/12/03 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"SINGAPORE","InVoyage":"W249","ETA":"2026/12/05 05:00","Berth":"-","OutVoyage":"W249","ETD":"2026/12/06 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W249","ETA":"2026/12/07 00:00","Berth":"-","OutVoyage":"W249","ETD":"2026/12/08 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"CHENNAI","InVoyage":"W249","ETA":"2026/12/12 08:00","Berth":"-","OutVoyage":"E249","ETD":"2026/12/14 08:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"VIZAG","InVoyage":"W249","ETA":"2026/12/15 05:00","Berth":"-","OutVoyage":"E249","ETD":"2026/12/16 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"PORT KLANG NORTH PORT","InVoyage":"E249","ETA":"2026/12/20 22:00","Berth":"-","OutVoyage":"E249","ETD":"2026/12/22 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 317","VesselCode":"3G","Lane":"TAMIL NADU – THAILAND EXPRESS (TTX)","Port":"SINGAPORE","InVoyage":"E249","ETA":"2026/12/22 20:00","Berth":"-","OutVoyage":"E249","ETD":"2026/12/24 00:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"QINGDAO","InVoyage":"E042","ETA":"2026/09/08 00:00","Berth":"2026/09/08 01:36","OutVoyage":"W043","ETD":"2026/09/08 18:00","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"BUSAN NEW PORT","InVoyage":"E042","ETA":"2026/09/09 18:00","Berth":"2026/09/13 02:00","OutVoyage":"W043","ETD":"2026/09/14 10:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHANGHAI","InVoyage":"E042","ETA":"2026/09/15 01:00","Berth":"-","OutVoyage":"W043","ETD":"2026/09/15 03:00","Status":"SKIP"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHEKOU","InVoyage":"W043","ETA":"2026/09/18 00:30","Berth":"2026/09/18 03:18","OutVoyage":"W043","ETD":"2026/09/18 14:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"W043","ETA":"2026/09/23 15:00","Berth":"2026/09/27 17:24","OutVoyage":"W043","ETD":"2026/09/28 06:50","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG WEST PORT","InVoyage":"W043","ETA":"2026/09/28 12:00","Berth":"-","OutVoyage":"W043","ETD":"2026/09/28 14:00","Status":"SKIP"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"W043","ETA":"2026/09/28 22:30","Berth":"2026/09/29 01:24","OutVoyage":"W043","ETD":"2026/09/29 18:20","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"CHENNAI","InVoyage":"W043","ETA":"2026/10/03 22:00","Berth":"2026/10/03 23:30","OutVoyage":"E043","ETD":"2026/10/05 18:00","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KATTUPALLI","InVoyage":"W043","ETA":"2026/10/05 20:00","Berth":"2026/10/05 21:06","OutVoyage":"E043","ETD":"2026/10/07 00:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"E043","ETA":"2026/10/11 10:00","Berth":"2026/10/11 16:00","OutVoyage":"E043","ETD":"2026/10/13 05:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"E043","ETA":"2026/10/13 06:00","Berth":"-","OutVoyage":"E043","ETD":"2026/10/13 08:00","Status":"SKIP"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PASIR GUDANG,JOHOR","InVoyage":"E043","ETA":"2026/10/14 13:30","Berth":"2026/10/16 00:54","OutVoyage":"E043","ETD":"2026/10/17 09:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KAOHSIUNG","InVoyage":"E043","ETA":"2026/10/21 12:00","Berth":"2026/10/26 18:30","OutVoyage":"E043","ETD":"2026/10/27 10:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"QINGDAO","InVoyage":"E043","ETA":"2026/10/30 12:00","Berth":"2026/10/31 00:50","OutVoyage":"W044","ETD":"2026/10/31 13:24","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PUSAN","InVoyage":"E043","ETA":"2026/11/02 05:00","Berth":"2026/11/02 06:50","OutVoyage":"W044","ETD":"2026/11/03 18:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHANGHAI","InVoyage":"E043","ETA":"2026/11/04 19:00","Berth":"-","OutVoyage":"W044","ETD":"2026/11/04 22:00","Status":"SKIP"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHEKOU","InVoyage":"W044","ETA":"2026/11/07 06:00","Berth":"2026/11/07 09:42","OutVoyage":"W044","ETD":"2026/11/08 06:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"W044","ETA":"2026/11/08 17:00","Berth":"-","OutVoyage":"W044","ETD":"2026/11/08 20:00","Status":"SKIP"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG WEST PORT","InVoyage":"W044","ETA":"2026/11/09 01:00","Berth":"-","OutVoyage":"W044","ETD":"2026/11/09 02:00","Status":"SKIP"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"W044","ETA":"2026/11/13 08:30","Berth":"-","OutVoyage":"W044","ETD":"2026/11/14 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"CHENNAI","InVoyage":"W044","ETA":"2026/11/18 04:00","Berth":"-","OutVoyage":"E044","ETD":"2026/11/19 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KATTUPALLI","InVoyage":"W044","ETA":"2026/11/19 14:00","Berth":"-","OutVoyage":"E044","ETD":"2026/11/20 22:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"E044","ETA":"2026/11/25 01:00","Berth":"-","OutVoyage":"E044","ETD":"2026/11/26 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PASIR GUDANG,JOHOR","InVoyage":"E044","ETA":"2026/11/26 16:00","Berth":"-","OutVoyage":"E044","ETD":"2026/11/27 16:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KAOHSIUNG","InVoyage":"E044","ETA":"2026/12/02 08:00","Berth":"-","OutVoyage":"E044","ETD":"2026/12/02 23:59","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"QINGDAO","InVoyage":"E044","ETA":"2026/12/05 15:00","Berth":"-","OutVoyage":"W045","ETD":"2026/12/06 09:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PUSAN","InVoyage":"E044","ETA":"2026/12/07 19:00","Berth":"-","OutVoyage":"W045","ETD":"2026/12/08 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHANGHAI","InVoyage":"E044","ETA":"2026/12/09 22:00","Berth":"-","OutVoyage":"W045","ETD":"2026/12/12 22:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHEKOU","InVoyage":"W045","ETA":"2026/12/15 12:00","Berth":"-","OutVoyage":"W045","ETD":"2026/12/16 04:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"W045","ETA":"2026/12/19 04:00","Berth":"-","OutVoyage":"W045","ETD":"2026/12/20 04:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG WEST PORT","InVoyage":"W045","ETA":"2026/12/20 12:00","Berth":"-","OutVoyage":"W045","ETD":"2026/12/20 14:00","Status":"SKIP"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"W045","ETA":"2026/12/20 19:00","Berth":"-","OutVoyage":"W045","ETD":"2026/12/21 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"CHENNAI","InVoyage":"W045","ETA":"2026/12/22 22:00","Berth":"-","OutVoyage":"E045","ETD":"2026/12/24 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KATTUPALLI","InVoyage":"W045","ETA":"2026/12/24 22:00","Berth":"-","OutVoyage":"E045","ETD":"2026/12/25 21:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"E045","ETA":"2026/12/30 05:00","Berth":"-","OutVoyage":"E045","ETD":"2026/12/30 23:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"E045","ETA":"2026/12/31 16:00","Berth":"-","OutVoyage":"E045","ETD":"2027/01/01 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PASIR GUDANG,JOHOR","InVoyage":"E045","ETA":"2027/01/01 12:00","Berth":"-","OutVoyage":"E045","ETD":"2027/01/02 23:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 521","VesselCode":"52A","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KAOHSIUNG","InVoyage":"E045","ETA":"2027/01/07 13:00","Berth":"-","OutVoyage":"E045","ETD":"2027/01/08 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"QINGDAO","InVoyage":"E040","ETA":"2026/08/30 15:00","Berth":"2026/08/30 18:45","OutVoyage":"W041","ETD":"2026/08/31 10:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"BUSAN NEW PORT","InVoyage":"E040","ETA":"2026/09/02 03:00","Berth":"2026/09/02 11:54","OutVoyage":"W041","ETD":"2026/09/03 22:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHANGHAI","InVoyage":"E040","ETA":"2026/09/04 08:00","Berth":"-","OutVoyage":"W041","ETD":"2026/09/04 10:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHEKOU","InVoyage":"W041","ETA":"2026/09/07 10:30","Berth":"2026/09/07 17:06","OutVoyage":"W041","ETD":"2026/09/08 16:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"W041","ETA":"2026/09/17 15:30","Berth":"2026/09/18 00:18","OutVoyage":"W041","ETD":"2026/09/18 07:36","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG WEST PORT","InVoyage":"W041","ETA":"2026/09/18 15:00","Berth":"-","OutVoyage":"W041","ETD":"2026/09/18 16:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"W041","ETA":"2026/09/18 21:06","Berth":"2026/09/19 00:36","OutVoyage":"W041","ETD":"2026/09/19 17:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"CHENNAI","InVoyage":"W041","ETA":"2026/09/24 03:36","Berth":"2026/09/24 06:42","OutVoyage":"E041","ETD":"2026/09/25 17:00","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KATTUPALLI","InVoyage":"W041","ETA":"2026/09/25 18:30","Berth":"2026/09/25 20:06","OutVoyage":"E041","ETD":"2026/09/26 20:24","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"E041","ETA":"2026/10/01 09:54","Berth":"2026/10/02 01:12","OutVoyage":"E041","ETD":"2026/10/03 13:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"E041","ETA":"2026/10/03 15:00","Berth":"-","OutVoyage":"E041","ETD":"2026/10/03 20:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PASIR GUDANG,JOHOR","InVoyage":"E041","ETA":"2026/10/04 08:12","Berth":"2026/10/04 10:48","OutVoyage":"E041","ETD":"2026/10/06 00:36","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KAOHSIUNG","InVoyage":"E041","ETA":"2026/10/10 20:30","Berth":"2026/10/11 00:30","OutVoyage":"E041","ETD":"2026/10/11 18:40","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"QINGDAO","InVoyage":"E041","ETA":"2026/10/16 04:00","Berth":"2026/10/16 12:36","OutVoyage":"W042","ETD":"2026/10/17 01:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"BUSAN NEW PORT","InVoyage":"E041","ETA":"2026/10/21 01:00","Berth":"2026/10/21 05:08","OutVoyage":"W042","ETD":"2026/10/22 04:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHANGHAI","InVoyage":"E041","ETA":"2026/10/22 06:00","Berth":"-","OutVoyage":"W042","ETD":"2026/10/22 08:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHEKOU","InVoyage":"W042","ETA":"2026/10/28 22:18","Berth":"2026/10/29 08:42","OutVoyage":"W042","ETD":"2026/10/29 22:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"W042","ETA":"2026/10/30 23:00","Berth":"-","OutVoyage":"W042","ETD":"2026/10/31 02:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG WEST PORT","InVoyage":"W042","ETA":"2026/10/31 05:00","Berth":"-","OutVoyage":"W042","ETD":"2026/10/31 05:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"W042","ETA":"2026/11/04 01:00","Berth":"2026/11/06 00:24","OutVoyage":"W042","ETD":"2026/11/07 00:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"CHENNAI","InVoyage":"W042","ETA":"2026/11/10 17:00","Berth":"2026/11/10 17:00","OutVoyage":"E042","ETD":"2026/11/12 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KATTUPALLI","InVoyage":"W042","ETA":"2026/11/12 03:00","Berth":"-","OutVoyage":"E042","ETD":"2026/11/13 15:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"E042","ETA":"2026/11/16 23:00","Berth":"-","OutVoyage":"E042","ETD":"2026/11/17 23:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"E042","ETA":"2026/11/18 01:00","Berth":"-","OutVoyage":"E042","ETD":"2026/11/18 06:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PASIR GUDANG,JOHOR","InVoyage":"E042","ETA":"2026/11/18 08:00","Berth":"-","OutVoyage":"E042","ETD":"2026/11/18 12:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KAOHSIUNG","InVoyage":"E042","ETA":"2026/11/18 17:00","Berth":"-","OutVoyage":"E042","ETD":"2026/11/19 05:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"QINGDAO","InVoyage":"E042","ETA":"2026/11/23 01:00","Berth":"-","OutVoyage":"W043","ETD":"2026/11/23 17:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PUSAN","InVoyage":"E042","ETA":"2026/11/25 03:00","Berth":"-","OutVoyage":"W043","ETD":"2026/11/25 19:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHANGHAI","InVoyage":"E042","ETA":"2026/11/27 05:00","Berth":"-","OutVoyage":"W043","ETD":"2026/11/30 05:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SHEKOU","InVoyage":"W043","ETA":"2026/12/02 08:00","Berth":"-","OutVoyage":"W043","ETD":"2026/12/02 23:59","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"W043","ETA":"2026/12/04 15:00","Berth":"-","OutVoyage":"W043","ETD":"2026/12/04 17:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG WEST PORT","InVoyage":"W043","ETA":"2026/12/04 19:00","Berth":"-","OutVoyage":"W043","ETD":"2026/12/05 00:01","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"W043","ETA":"2026/12/06 21:00","Berth":"-","OutVoyage":"W043","ETD":"2026/12/07 15:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"CHENNAI","InVoyage":"W043","ETA":"2026/12/10 23:00","Berth":"-","OutVoyage":"E043","ETD":"2026/12/12 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KATTUPALLI","InVoyage":"W043","ETA":"2026/12/12 09:00","Berth":"-","OutVoyage":"E043","ETD":"2026/12/13 21:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PORT KLANG NORTH PORT","InVoyage":"E043","ETA":"2026/12/17 05:00","Berth":"-","OutVoyage":"E043","ETD":"2026/12/18 05:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"SINGAPORE","InVoyage":"E043","ETA":"2026/12/18 12:00","Berth":"-","OutVoyage":"E043","ETD":"2026/12/18 13:00","Status":"SKIP"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"PASIR GUDANG,JOHOR","InVoyage":"E043","ETA":"2026/12/18 20:00","Berth":"-","OutVoyage":"E043","ETD":"2026/12/19 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 522","VesselCode":"52B","Lane":"CHINA-INDIA SERVICE V (CI5)","Port":"KAOHSIUNG","InVoyage":"E043","ETA":"2026/12/24 04:00","Berth":"-","OutVoyage":"E043","ETD":"2026/12/25 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"KAOHSIUNG","InVoyage":"E043","ETA":"2026/08/26 20:42","Berth":"2026/08/27 00:36","OutVoyage":"W044","ETD":"2026/08/27 22:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"HONG KONG","InVoyage":"E043","ETA":"2026/08/29 13:00","Berth":"-","OutVoyage":"W044","ETD":"2026/08/29 14:00","Status":"SKIP"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SHEKOU","InVoyage":"E043","ETA":"2026/08/29 15:00","Berth":"2026/08/30 15:06","OutVoyage":"W044","ETD":"2026/08/31 11:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SINGAPORE","InVoyage":"W044","ETA":"2026/09/08 02:30","Berth":"2026/09/08 07:24","OutVoyage":"W044","ETD":"2026/09/09 03:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W044","ETA":"2026/09/09 16:12","Berth":"2026/09/10 07:24","OutVoyage":"W044","ETD":"2026/09/10 15:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"COLOMBO","InVoyage":"W044","ETA":"2026/09/15 02:30","Berth":"2026/09/15 10:18","OutVoyage":"W044","ETD":"2026/09/16 04:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"NHAVA SHEVA","InVoyage":"W044","ETA":"2026/09/18 12:00","Berth":"2026/09/18 15:30","OutVoyage":"E044","ETD":"2026/09/19 18:36","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"PORT KLANG NORTH PORT","InVoyage":"E044","ETA":"2026/09/26 11:00","Berth":"2026/09/26 13:30","OutVoyage":"E044","ETD":"2026/09/27 14:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SINGAPORE","InVoyage":"E044","ETA":"2026/10/01 13:00","Berth":"2026/10/01 15:42","OutVoyage":"E044","ETD":"2026/10/02 11:36","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"KAOHSIUNG","InVoyage":"E044","ETA":"2026/10/06 16:24","Berth":"2026/10/06 18:54","OutVoyage":"W045","ETD":"2026/10/08 00:36","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"HONG KONG","InVoyage":"E044","ETA":"2026/10/08 23:12","Berth":"2026/10/09 02:30","OutVoyage":"W045","ETD":"2026/10/09 19:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SHEKOU","InVoyage":"E044","ETA":"2026/10/09 20:36","Berth":"2026/10/09 22:48","OutVoyage":"W045","ETD":"2026/10/10 17:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SINGAPORE","InVoyage":"W045","ETA":"2026/10/17 05:00","Berth":"2026/10/17 09:42","OutVoyage":"W045","ETD":"2026/10/18 08:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W045","ETA":"2026/10/19 02:00","Berth":"2026/10/19 08:18","OutVoyage":"W045","ETD":"2026/10/19 22:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"COLOMBO","InVoyage":"W045","ETA":"2026/10/24 12:42","Berth":"2026/10/24 17:12","OutVoyage":"W045","ETD":"2026/10/25 08:24","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"NHAVA SHEVA","InVoyage":"W045","ETA":"2026/10/27 16:00","Berth":"2026/10/27 20:30","OutVoyage":"E045","ETD":"2026/10/28 17:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"PORT KLANG NORTH PORT","InVoyage":"E045","ETA":"2026/11/05 20:12","Berth":"2026/11/06 11:18","OutVoyage":"E045","ETD":"2026/11/07 21:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SINGAPORE","InVoyage":"E045","ETA":"2026/11/08 00:30","Berth":"-","OutVoyage":"E045","ETD":"2026/11/08 01:30","Status":"SKIP"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SHEKOU","InVoyage":"E045","ETA":"2026/11/12 10:00","Berth":"-","OutVoyage":"E045","ETD":"2026/11/13 10:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"KAOHSIUNG","InVoyage":"E045","ETA":"2026/11/14 10:00","Berth":"-","OutVoyage":"E045","ETD":"2026/11/15 10:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"QINGDAO","InVoyage":"E045","ETA":"2026/11/18 01:00","Berth":"-","OutVoyage":"W046","ETD":"2026/11/19 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SHANGHAI","InVoyage":"E045","ETA":"2026/11/21 00:00","Berth":"-","OutVoyage":"W046","ETD":"2026/11/22 13:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"NINGBO","InVoyage":"E045","ETA":"2026/11/23 07:00","Berth":"-","OutVoyage":"W046","ETD":"2026/11/24 10:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"NANSHA NEW PORT","InVoyage":"E045","ETA":"2026/11/26 13:00","Berth":"-","OutVoyage":"W046","ETD":"2026/11/27 04:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SHEKOU","InVoyage":"S045","ETA":"2026/11/27 13:00","Berth":"-","OutVoyage":"W046","ETD":"2026/11/28 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W046","ETA":"2026/12/02 11:00","Berth":"-","OutVoyage":"W046","ETD":"2026/12/03 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SUEZ CANAL","InVoyage":"W046","ETA":"2026/12/17 06:00","Berth":"-","OutVoyage":"W046","ETD":"2026/12/18 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"EL DEKHEILA","InVoyage":"W046","ETA":"2026/12/19 08:00","Berth":"-","OutVoyage":"E046","ETD":"2026/12/19 22:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"IZMIT","InVoyage":"W046","ETA":"2026/12/22 04:00","Berth":"-","OutVoyage":"E046","ETD":"2026/12/23 09:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"ISTANBUL","InVoyage":"W046","ETA":"2026/12/23 15:00","Berth":"-","OutVoyage":"E046","ETD":"2026/12/25 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"MERSIN","InVoyage":"W046","ETA":"2026/12/27 12:00","Berth":"-","OutVoyage":"E046","ETD":"2026/12/28 09:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"SUEZ CANAL","InVoyage":"E046","ETA":"2026/12/29 10:00","Berth":"-","OutVoyage":"E046","ETD":"2026/12/31 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"PORT KLANG NORTH PORT","InVoyage":"E046","ETA":"2027/01/14 03:00","Berth":"-","OutVoyage":"E046","ETD":"2027/01/14 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"NANSHA NEW PORT","InVoyage":"N046","ETA":"2027/01/19 20:00","Berth":"-","OutVoyage":"N046","ETD":"2027/01/20 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 523","VesselCode":"52C","Lane":"China-India Express Service (CIX)","Port":"QINGDAO","InVoyage":"N046","ETA":"2027/01/24 20:00","Berth":"-","OutVoyage":"N046","ETD":"2027/01/25 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"NINGBO","InVoyage":"N026","ETA":"2026/07/13 09:00","Berth":"2026/07/16 21:00","OutVoyage":"E027","ETD":"2026/07/17 20:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"SHANGHAI","InVoyage":"E026","ETA":"2026/07/18 08:12","Berth":"2026/07/23 07:18","OutVoyage":"E027","ETD":"2026/07/24 06:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"QINGDAO","InVoyage":"E026","ETA":"2026/07/25 10:42","Berth":"2026/07/28 08:24","OutVoyage":"E027","ETD":"2026/07/29 00:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"BUSAN NEW PORT","InVoyage":"W026","ETA":"2026/07/30 11:00","Berth":"2026/08/02 04:06","OutVoyage":"E027","ETD":"2026/08/02 19:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"ENSENADA","InVoyage":"E027","ETA":"2026/08/17 15:30","Berth":"2026/08/17 19:42","OutVoyage":"W027","ETD":"2026/08/18 09:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"MANZANILLO","InVoyage":"E027","ETA":"2026/08/21 12:00","Berth":"2026/08/21 14:12","OutVoyage":"W027","ETD":"2026/08/22 16:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"LAZARO CARDENAS","InVoyage":"E027","ETA":"2026/08/23 06:00","Berth":"2026/08/24 07:54","OutVoyage":"W027","ETD":"2026/08/24 22:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"PUERTO QUETZAL","InVoyage":"E027","ETA":"2026/08/27 06:00","Berth":"2026/08/27 11:24","OutVoyage":"W027","ETD":"2026/08/28 04:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"BUENAVENTURA","InVoyage":"E027","ETA":"2026/08/31 13:00","Berth":"2026/08/31 17:54","OutVoyage":"W027","ETD":"2026/09/01 18:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"CALLAO","InVoyage":"E027","ETA":"2026/09/05 15:30","Berth":"2026/09/05 20:42","OutVoyage":"W027","ETD":"2026/09/06 13:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"SAN ANTONIO","InVoyage":"E027","ETA":"2026/09/10 04:06","Berth":"2026/09/10 07:00","OutVoyage":"W027","ETD":"2026/09/11 15:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"BUSAN NEW PORT","InVoyage":"W027","ETA":"2026/10/11 06:30","Berth":"2026/10/11 22:06","OutVoyage":"W028","ETD":"2026/10/12 08:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"QINGDAO","InVoyage":"W027","ETA":"2026/10/13 14:30","Berth":"2026/10/14 05:18","OutVoyage":"W028","ETD":"2026/10/15 02:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"SHANGHAI","InVoyage":"W027","ETA":"2026/10/16 05:00","Berth":"2026/10/16 15:06","OutVoyage":"W028","ETD":"2026/10/17 02:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"NINGBO","InVoyage":"W027","ETA":"2026/10/17 13:42","Berth":"2026/10/21 02:48","OutVoyage":"W028","ETD":"2026/10/21 14:00","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"JIANGYIN,FUJIAN CHINA","InVoyage":"W027","ETA":"2026/10/24 20:00","Berth":"2026/10/25 19:00","OutVoyage":"W028","ETD":"2026/10/26 03:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"SHEKOU","InVoyage":"W027","ETA":"2026/10/27 07:12","Berth":"2026/10/27 11:54","OutVoyage":"W028","ETD":"2026/10/28 08:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"SINGAPORE","InVoyage":"W028","ETA":"2026/11/02 09:00","Berth":"2026/11/02 23:06","OutVoyage":"W028","ETD":"2026/11/03 16:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W028","ETA":"2026/11/04 07:36","Berth":"2026/11/05 00:06","OutVoyage":"W028","ETD":"2026/11/05 22:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"COLOMBO","InVoyage":"W028","ETA":"2026/11/09 15:00","Berth":"2026/11/09 21:00","OutVoyage":"W028","ETD":"2026/11/10 05:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"MUNDRA","InVoyage":"W028","ETA":"2026/11/13 13:00","Berth":"-","OutVoyage":"E028","ETD":"2026/11/15 15:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"KARACHI (KICT)","InVoyage":"W028","ETA":"2026/11/16 04:00","Berth":"-","OutVoyage":"E028","ETD":"2026/11/17 22:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"KARACHI(KGTL)","InVoyage":"W028","ETA":"2026/11/17 23:00","Berth":"-","OutVoyage":"E028","ETD":"2026/11/19 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"PORT KLANG NORTH PORT","InVoyage":"E028","ETA":"2026/11/26 13:00","Berth":"-","OutVoyage":"E028","ETD":"2026/11/27 05:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"SHANGHAI","InVoyage":"E028","ETA":"2026/12/04 02:00","Berth":"-","OutVoyage":"W029","ETD":"2026/12/06 09:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"NINGBO","InVoyage":"E028","ETA":"2026/12/06 20:00","Berth":"-","OutVoyage":"W029","ETD":"2026/12/07 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"JIANGYIN,FUJIAN CHINA","InVoyage":"E028","ETA":"2026/12/08 20:00","Berth":"-","OutVoyage":"W029","ETD":"2026/12/09 16:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"SHEKOU","InVoyage":"E028","ETA":"2026/12/10 23:00","Berth":"-","OutVoyage":"W029","ETD":"2026/12/11 21:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"SINGAPORE","InVoyage":"W029","ETA":"2026/12/15 19:00","Berth":"-","OutVoyage":"W029","ETD":"2026/12/16 16:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"PORT KLANG NORTH PORT","InVoyage":"W029","ETA":"2026/12/17 06:00","Berth":"-","OutVoyage":"W029","ETD":"2026/12/17 22:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"COLOMBO","InVoyage":"W029","ETA":"2026/12/21 10:00","Berth":"-","OutVoyage":"W029","ETD":"2026/12/21 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"MUNDRA","InVoyage":"W029","ETA":"2026/12/25 04:00","Berth":"-","OutVoyage":"E029","ETD":"2026/12/27 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"KARACHI (KICT)","InVoyage":"W029","ETA":"2026/12/27 19:00","Berth":"-","OutVoyage":"E029","ETD":"2026/12/29 13:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"KARACHI(KGTL)","InVoyage":"W029","ETA":"2026/12/29 14:00","Berth":"-","OutVoyage":"E029","ETD":"2026/12/31 09:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"PORT KLANG NORTH PORT","InVoyage":"E029","ETA":"2027/01/07 04:00","Berth":"-","OutVoyage":"E029","ETD":"2027/01/07 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 621","VesselCode":"62A","Lane":"PAKISTAN MUNDRA EXPRESS (PMX)","Port":"SINGAPORE","InVoyage":"E029","ETA":"2027/01/07 20:00","Berth":"-","OutVoyage":"E029","ETD":"2027/01/07 20:00","Status":"SKIP"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SHANGHAI","InVoyage":"E029","ETA":"2026/05/30 05:18","Berth":"2026/05/30 10:48","OutVoyage":"W030","ETD":"2026/05/31 10:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"QINGDAO","InVoyage":"E029","ETA":"2026/06/02 03:30","Berth":"2026/06/04 09:48","OutVoyage":"W030","ETD":"2026/06/04 16:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"NINGBO","InVoyage":"E029","ETA":"2026/06/06 09:12","Berth":"2026/06/08 03:36","OutVoyage":"W030","ETD":"2026/06/08 15:36","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"NANSHA NEW PORT","InVoyage":"E029","ETA":"2026/06/10 19:00","Berth":"2026/06/10 22:00","OutVoyage":"W030","ETD":"2026/06/11 12:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SHEKOU","InVoyage":"E029","ETA":"2026/06/11 18:42","Berth":"2026/06/11 21:48","OutVoyage":"W030","ETD":"2026/06/12 15:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"PORT KLANG NORTH PORT","InVoyage":"W030","ETA":"2026/06/17 07:00","Berth":"2026/06/17 19:30","OutVoyage":"W030","ETD":"2026/06/18 10:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"JEDDAH","InVoyage":"W030","ETA":"2026/06/29 13:30","Berth":"2026/07/18 08:36","OutVoyage":"W030","ETD":"2026/07/23 16:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"AQABA","InVoyage":"W030","ETA":"2026/07/24 17:00","Berth":"-","OutVoyage":"W030","ETD":"2026/07/24 17:00","Status":"SKIP"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SOKHNA PORT","InVoyage":"W030","ETA":"2026/07/25 17:00","Berth":"-","OutVoyage":"W030","ETD":"2026/07/25 17:00","Status":"SKIP"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"PORT KLANG NORTH PORT","InVoyage":"E030","ETA":"2026/08/03 21:00","Berth":"2026/08/04 06:12","OutVoyage":"E030","ETD":"2026/08/05 21:00","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"NANSHA NEW PORT","InVoyage":"E030","ETA":"2026/08/10 14:30","Berth":"2026/08/11 19:42","OutVoyage":"E030","ETD":"2026/08/12 21:24","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"NINGBO","InVoyage":"E031","ETA":"2026/09/14 11:18","Berth":"2026/09/14 13:24","OutVoyage":"W032","ETD":"2026/09/14 21:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SHANGHAI","InVoyage":"E031","ETA":"2026/09/15 19:30","Berth":"2026/09/19 03:54","OutVoyage":"W032","ETD":"2026/09/19 17:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"QINGDAO","InVoyage":"E031","ETA":"2026/09/21 07:30","Berth":"2026/09/22 05:00","OutVoyage":"W032","ETD":"2026/09/22 13:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"NANSHA NEW PORT","InVoyage":"E031","ETA":"2026/09/25 17:00","Berth":"2026/09/26 19:06","OutVoyage":"W032","ETD":"2026/09/27 03:18","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SHEKOU","InVoyage":"E031","ETA":"2026/09/27 07:00","Berth":"2026/09/28 13:30","OutVoyage":"W032","ETD":"2026/09/29 08:06","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"PORT KLANG NORTH PORT","InVoyage":"W032","ETA":"2026/10/04 11:00","Berth":"2026/10/04 17:06","OutVoyage":"W032","ETD":"2026/10/05 12:12","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SOKHNA PORT","InVoyage":"W032","ETA":"2026/10/11 07:00","Berth":"-","OutVoyage":"W032","ETD":"2026/10/12 07:00","Status":"SKIP"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SUEZ CANAL","InVoyage":"W032","ETA":"2026/10/17 18:30","Berth":"2026/10/17 19:42","OutVoyage":"W032","ETD":"2026/10/18 06:00","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"MERSIN","InVoyage":"W032","ETA":"2026/10/19 14:00","Berth":"2026/10/19 15:30","OutVoyage":"E032","ETD":"2026/10/20 11:30","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"IZMIT","InVoyage":"W032","ETA":"2026/10/23 10:30","Berth":"2026/10/23 14:24","OutVoyage":"E032","ETD":"2026/10/24 12:48","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"ISTANBUL","InVoyage":"W032","ETA":"2026/10/24 17:00","Berth":"2026/10/24 19:00","OutVoyage":"E032","ETD":"2026/10/25 18:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"EL DEKHEILA","InVoyage":"W032","ETA":"2026/10/27 16:30","Berth":"2026/10/27 20:48","OutVoyage":"E032","ETD":"2026/10/30 07:54","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SUEZ CANAL","InVoyage":"E032","ETA":"2026/10/30 17:00","Berth":"2026/10/30 18:36","OutVoyage":"E032","ETD":"2026/10/31 01:42","Status":"ACTUAL"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"PORT KLANG NORTH PORT","InVoyage":"E032","ETA":"2026/11/14 03:00","Berth":"-","OutVoyage":"E032","ETD":"2026/11/15 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"NANSHA NEW PORT","InVoyage":"E032","ETA":"2026/11/20 08:00","Berth":"-","OutVoyage":"E032","ETD":"2026/11/20 23:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SHANGHAI","InVoyage":"E032","ETA":"2026/11/24 08:00","Berth":"-","OutVoyage":"W033","ETD":"2026/11/26 08:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"QINGDAO","InVoyage":"E032","ETA":"2026/11/27 12:00","Berth":"-","OutVoyage":"W033","ETD":"2026/11/28 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"NINGBO","InVoyage":"E032","ETA":"2026/11/29 18:00","Berth":"-","OutVoyage":"W033","ETD":"2026/12/01 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"XIAMEN","InVoyage":"W033","ETA":"2026/12/03 06:00","Berth":"-","OutVoyage":"W033","ETD":"2026/12/04 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"NANSHA NEW PORT","InVoyage":"W033","ETA":"2026/12/05 06:00","Berth":"-","OutVoyage":"W033","ETD":"2026/12/06 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SHEKOU","InVoyage":"W033","ETA":"2026/12/06 18:00","Berth":"-","OutVoyage":"W033","ETD":"2026/12/07 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"PORT KLANG NORTH PORT","InVoyage":"W033","ETA":"2026/12/12 06:00","Berth":"-","OutVoyage":"W033","ETD":"2026/12/14 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"AQABA","InVoyage":"W033","ETA":"2026/12/27 18:00","Berth":"-","OutVoyage":"W033","ETD":"2026/12/29 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"SOKHNA PORT","InVoyage":"W033","ETA":"2026/12/30 06:00","Berth":"-","OutVoyage":"W033","ETD":"2026/12/30 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"JEDDAH","InVoyage":"W033","ETA":"2027/01/01 18:00","Berth":"-","OutVoyage":"W033","ETD":"2027/01/04 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"PORT KLANG NORTH PORT","InVoyage":"E033","ETA":"2027/01/16 12:00","Berth":"-","OutVoyage":"E033","ETD":"2027/01/18 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"NANSHA NEW PORT","InVoyage":"E033","ETA":"2027/01/22 20:00","Berth":"-","OutVoyage":"E033","ETD":"2027/01/23 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI 626","VesselCode":"62F","Lane":"FAREAST MEDITERRANEAN 1 (FM1)","Port":"QINGDAO","InVoyage":"E033","ETA":"2027/01/28 06:00","Berth":"-","OutVoyage":"E033","ETD":"2027/01/29 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"HAIPHONG","InVoyage":"W018","ETA":"2026/07/25 00:00","Berth":"2026/07/25 02:48","OutVoyage":"E019","ETD":"2026/07/26 01:12","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"CAI MEP","InVoyage":"W018","ETA":"2026/07/28 03:00","Berth":"2026/07/28 06:36","OutVoyage":"E019","ETD":"2026/07/28 21:48","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"SHEKOU","InVoyage":"E019","ETA":"2026/08/01 07:30","Berth":"2026/08/01 10:36","OutVoyage":"E019","ETD":"2026/08/02 08:00","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"XIAMEN","InVoyage":"W018","ETA":"2026/08/03 09:00","Berth":"2026/08/03 14:00","OutVoyage":"E019","ETD":"2026/08/04 14:36","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"TAIPEI","InVoyage":"W018","ETA":"2026/08/05 05:00","Berth":"2026/08/05 08:12","OutVoyage":"E019","ETD":"2026/08/06 07:12","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"LOS ANGELES, CA","InVoyage":"E019","ETA":"2026/08/22 01:00","Berth":"2026/08/22 04:12","OutVoyage":"W019","ETD":"2026/08/26 20:24","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"OAKLAND, CA","InVoyage":"E019","ETA":"2026/08/28 07:00","Berth":"2026/08/28 10:54","OutVoyage":"W019","ETD":"2026/08/30 06:06","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"SHEKOU","InVoyage":"W019","ETA":"2026/09/15 03:00","Berth":"2026/09/15 07:48","OutVoyage":"W019","ETD":"2026/09/16 15:00","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"HAIPHONG","InVoyage":"W019","ETA":"2026/09/16 20:00","Berth":"-","OutVoyage":"E020","ETD":"2026/09/16 20:00","Status":"SKIP"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"CAI MEP","InVoyage":"W019","ETA":"2026/09/19 11:00","Berth":"2026/09/19 15:30","OutVoyage":"E020","ETD":"2026/09/20 22:24","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"SHEKOU","InVoyage":"E020","ETA":"2026/09/23 17:00","Berth":"2026/09/23 21:36","OutVoyage":"E020","ETD":"2026/09/25 08:48","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"XIAMEN","InVoyage":"W019","ETA":"2026/09/28 16:00","Berth":"2026/09/28 22:48","OutVoyage":"E020","ETD":"2026/09/30 04:00","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"TAIPEI","InVoyage":"W019","ETA":"2026/10/01 03:00","Berth":"2026/10/01 05:18","OutVoyage":"E020","ETD":"2026/10/02 03:24","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"LOS ANGELES, CA","InVoyage":"E020","ETA":"2026/10/16 19:00","Berth":"2026/10/16 21:42","OutVoyage":"W020","ETD":"2026/10/22 05:42","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"OAKLAND, CA","InVoyage":"E020","ETA":"2026/10/23 14:00","Berth":"2026/10/23 17:54","OutVoyage":"W020","ETD":"2026/10/25 03:12","Status":"ACTUAL"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"SHEKOU","InVoyage":"W020","ETA":"2026/11/10 07:00","Berth":"2026/11/10 10:00","OutVoyage":"W020","ETD":"2026/11/11 09:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"HAIPHONG","InVoyage":"W020","ETA":"2026/11/12 22:00","Berth":"-","OutVoyage":"E021","ETD":"2026/11/13 22:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"CAI MEP","InVoyage":"W020","ETA":"2026/11/16 05:00","Berth":"-","OutVoyage":"E021","ETD":"2026/11/19 05:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"SHEKOU","InVoyage":"E021","ETA":"2026/11/21 23:00","Berth":"-","OutVoyage":"E021","ETD":"2026/11/22 21:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"XIAMEN","InVoyage":"W020","ETA":"2026/11/23 19:00","Berth":"-","OutVoyage":"E021","ETD":"2026/11/24 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"TAIPEI","InVoyage":"W020","ETA":"2026/11/25 12:00","Berth":"-","OutVoyage":"E021","ETD":"2026/11/26 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"LOS ANGELES, CA","InVoyage":"E021","ETA":"2026/12/11 15:00","Berth":"-","OutVoyage":"W021","ETD":"2026/12/16 19:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"OAKLAND, CA","InVoyage":"E021","ETA":"2026/12/18 02:00","Berth":"-","OutVoyage":"W021","ETD":"2026/12/21 05:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A01","VesselCode":"A01","Lane":"ASIA PACIFIC SERVICE (AP1)","Port":"SHEKOU","InVoyage":"W021","ETA":"2027/01/09 07:00","Berth":"-","OutVoyage":"W021","ETD":"2027/01/10 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"KAOHSIUNG","InVoyage":"W016","ETA":"2026/06/09 14:24","Berth":"2026/06/10 00:54","OutVoyage":"E017","ETD":"2026/06/11 11:00","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"SHEKOU","InVoyage":"W016","ETA":"2026/06/12 16:30","Berth":"2026/06/12 21:12","OutVoyage":"E017","ETD":"2026/06/14 23:54","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"HONG KONG","InVoyage":"W016","ETA":"2026/06/15 00:30","Berth":"2026/06/15 02:48","OutVoyage":"E017","ETD":"2026/06/16 02:00","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"NINGBO","InVoyage":"W016","ETA":"2026/06/18 12:00","Berth":"2026/06/18 20:42","OutVoyage":"E017","ETD":"2026/06/19 17:30","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"SHANGHAI","InVoyage":"W016","ETA":"2026/06/20 01:18","Berth":"2026/06/26 05:54","OutVoyage":"E017","ETD":"2026/06/27 07:54","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"E017","ETA":"2026/07/13 06:48","Berth":"2026/07/13 19:18","OutVoyage":"E017","ETD":"2026/07/16 03:18","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"LAZARO CARDENAS","InVoyage":"E017","ETA":"2026/07/16 13:48","Berth":"2026/07/16 16:36","OutVoyage":"W017","ETD":"2026/07/17 13:42","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"PUERTO QUETZAL","InVoyage":"E017","ETA":"2026/07/19 09:18","Berth":"2026/07/19 19:36","OutVoyage":"W017","ETD":"2026/07/20 20:00","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"CALLAO","InVoyage":"E017","ETA":"2026/07/25 02:48","Berth":"2026/07/25 14:42","OutVoyage":"W017","ETD":"2026/07/26 18:48","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"GUAYAQUIL","InVoyage":"E017","ETA":"2026/07/28 12:00","Berth":"2026/07/28 18:06","OutVoyage":"W017","ETD":"2026/07/30 16:06","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"W017","ETA":"2026/08/06 07:00","Berth":"2026/08/08 06:00","OutVoyage":"W017","ETD":"2026/08/10 17:48","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"BUSAN NEW PORT","InVoyage":"W017","ETA":"2026/08/22 01:00","Berth":"-","OutVoyage":"W017","ETD":"2026/08/23 02:00","Status":"SKIP"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"KAOHSIUNG","InVoyage":"W017","ETA":"2026/08/29 07:30","Berth":"2026/08/29 10:18","OutVoyage":"E018","ETD":"2026/08/30 17:42","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"SHEKOU","InVoyage":"W017","ETA":"2026/08/31 15:30","Berth":"2026/08/31 20:00","OutVoyage":"E018","ETD":"2026/09/03 08:48","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"HONG KONG","InVoyage":"W017","ETA":"2026/09/03 10:42","Berth":"2026/09/03 11:30","OutVoyage":"E018","ETD":"2026/09/04 14:18","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"NINGBO","InVoyage":"W017","ETA":"2026/09/06 20:00","Berth":"2026/09/12 00:30","OutVoyage":"E018","ETD":"2026/09/13 07:36","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"SHANGHAI","InVoyage":"W017","ETA":"2026/09/14 11:00","Berth":"-","OutVoyage":"E018","ETD":"2026/09/14 15:00","Status":"SKIP"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"E018","ETA":"2026/09/29 08:30","Berth":"2026/10/01 09:06","OutVoyage":"E018","ETD":"2026/10/03 06:18","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"LAZARO CARDENAS","InVoyage":"E018","ETA":"2026/10/03 19:30","Berth":"2026/10/05 22:06","OutVoyage":"W018","ETD":"2026/10/07 02:54","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"PUERTO QUETZAL","InVoyage":"E018","ETA":"2026/10/09 20:30","Berth":"2026/10/11 00:24","OutVoyage":"W018","ETD":"2026/10/12 01:12","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"CALLAO","InVoyage":"E018","ETA":"2026/10/16 14:00","Berth":"2026/10/16 16:24","OutVoyage":"W018","ETD":"2026/10/17 20:30","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"GUAYAQUIL","InVoyage":"E018","ETA":"2026/10/19 19:00","Berth":"2026/10/20 01:30","OutVoyage":"W018","ETD":"2026/10/22 08:54","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"W018","ETA":"2026/10/28 15:00","Berth":"2026/10/31 21:48","OutVoyage":"W018","ETD":"2026/11/02 17:12","Status":"ACTUAL"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"BUSAN NEW PORT","InVoyage":"W018","ETA":"2026/11/04 02:30","Berth":"-","OutVoyage":"W018","ETD":"2026/11/04 02:30","Status":"SKIP"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"KAOHSIUNG","InVoyage":"W018","ETA":"2026/11/20 17:00","Berth":"-","OutVoyage":"E019","ETD":"2026/11/21 14:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"SHEKOU","InVoyage":"W018","ETA":"2026/11/22 13:00","Berth":"-","OutVoyage":"E019","ETD":"2026/11/24 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"HONG KONG","InVoyage":"W018","ETA":"2026/11/24 15:00","Berth":"-","OutVoyage":"E019","ETD":"2026/11/25 07:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"NINGBO","InVoyage":"W018","ETA":"2026/11/27 02:00","Berth":"-","OutVoyage":"E019","ETD":"2026/11/30 02:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"SHANGHAI","InVoyage":"W018","ETA":"2026/11/30 12:00","Berth":"-","OutVoyage":"E019","ETD":"2026/12/03 12:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"E019","ETA":"2026/12/19 00:00","Berth":"-","OutVoyage":"E019","ETD":"2026/12/20 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"LAZARO CARDENAS","InVoyage":"E019","ETA":"2026/12/21 09:00","Berth":"-","OutVoyage":"W019","ETD":"2026/12/22 05:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"PUERTO QUETZAL","InVoyage":"E019","ETA":"2026/12/24 01:00","Berth":"-","OutVoyage":"W019","ETD":"2026/12/25 06:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"CALLAO","InVoyage":"E019","ETA":"2026/12/30 00:00","Berth":"-","OutVoyage":"W019","ETD":"2026/12/31 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"GUAYAQUIL","InVoyage":"E019","ETA":"2027/01/02 01:00","Berth":"-","OutVoyage":"W019","ETD":"2027/01/05 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"W019","ETA":"2027/01/10 01:00","Berth":"-","OutVoyage":"W019","ETD":"2027/01/12 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI A02","VesselCode":"A02","Lane":"Asia - South America Service (ASA)","Port":"BUSAN NEW PORT","InVoyage":"W019","ETA":"2027/01/30 01:00","Berth":"-","OutVoyage":"W019","ETD":"2027/01/31 02:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"KAOHSIUNG","InVoyage":"W002","ETA":"2026/04/14 16:42","Berth":"2026/04/14 19:12","OutVoyage":"E003","ETD":"2026/04/15 20:54","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"SHEKOU","InVoyage":"W002","ETA":"2026/04/17 14:00","Berth":"2026/04/17 18:00","OutVoyage":"E003","ETD":"2026/04/19 02:42","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"HONG KONG","InVoyage":"W002","ETA":"2026/04/19 03:36","Berth":"2026/04/19 08:12","OutVoyage":"E003","ETD":"2026/04/19 23:18","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"NINGBO","InVoyage":"W002","ETA":"2026/04/21 17:00","Berth":"2026/04/22 08:12","OutVoyage":"E003","ETD":"2026/04/22 22:48","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"SHANGHAI","InVoyage":"W002","ETA":"2026/04/23 14:54","Berth":"2026/04/25 08:06","OutVoyage":"E003","ETD":"2026/04/26 08:00","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"MANZANILLO","InVoyage":"E003","ETA":"2026/05/13 01:00","Berth":"2026/05/13 22:48","OutVoyage":"E003","ETD":"2026/05/15 07:18","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"LAZARO CARDENAS","InVoyage":"E003","ETA":"2026/05/16 04:00","Berth":"2026/05/16 09:00","OutVoyage":"W003","ETD":"2026/05/16 23:42","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"PUERTO QUETZAL","InVoyage":"E003","ETA":"2026/05/19 15:30","Berth":"2026/05/20 05:24","OutVoyage":"W003","ETD":"2026/05/21 03:36","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"CALLAO","InVoyage":"E003","ETA":"2026/05/26 07:00","Berth":"2026/05/29 23:12","OutVoyage":"W003","ETD":"2026/05/31 06:48","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"GUAYAQUIL","InVoyage":"E003","ETA":"2026/06/02 23:30","Berth":"2026/06/03 09:06","OutVoyage":"W003","ETD":"2026/06/06 07:06","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"MANZANILLO","InVoyage":"W003","ETA":"2026/06/11 05:00","Berth":"2026/06/11 06:48","OutVoyage":"W003","ETD":"2026/06/13 03:42","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"BUSAN NEW PORT","InVoyage":"W003","ETA":"2026/06/28 07:00","Berth":"-","OutVoyage":"W003","ETD":"2026/06/28 08:00","Status":"SKIP"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"KAOHSIUNG","InVoyage":"W003","ETA":"2026/07/02 16:30","Berth":"2026/07/04 18:00","OutVoyage":"W003","ETD":"2026/07/05 07:54","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"HONG KONG","InVoyage":"W003","ETA":"2026/07/06 05:00","Berth":"2026/07/06 08:00","OutVoyage":"W003","ETD":"2026/07/07 16:18","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"CHIWAN","InVoyage":"W003","ETA":"2026/07/08 12:18","Berth":"2026/07/08 13:30","OutVoyage":"W003","ETD":"2026/07/09 17:00","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"NINGBO","InVoyage":"W003","ETA":"2026/08/20 16:42","Berth":"2026/08/26 00:30","OutVoyage":"E004","ETD":"2026/08/26 16:42","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"SHANGHAI","InVoyage":"W003","ETA":"2026/08/28 18:30","Berth":"2026/09/08 23:24","OutVoyage":"E004","ETD":"2026/09/09 14:24","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"QINGDAO","InVoyage":"W003","ETA":"2026/09/12 03:00","Berth":"2026/09/12 05:12","OutVoyage":"E004","ETD":"2026/09/13 03:30","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"BUSAN NEW PORT","InVoyage":"W003","ETA":"2026/09/18 08:00","Berth":"2026/09/18 11:00","OutVoyage":"E004","ETD":"2026/09/19 04:48","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"ENSENADA","InVoyage":"E004","ETA":"2026/10/02 10:00","Berth":"2026/10/02 15:24","OutVoyage":"W004","ETD":"2026/10/03 10:06","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"MANZANILLO","InVoyage":"E004","ETA":"2026/10/11 17:00","Berth":"2026/10/13 22:36","OutVoyage":"W004","ETD":"2026/10/15 07:48","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"LAZARO CARDENAS","InVoyage":"E004","ETA":"2026/10/15 20:00","Berth":"-","OutVoyage":"W004","ETD":"2026/10/15 20:00","Status":"SKIP"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"PUERTO QUETZAL","InVoyage":"E004","ETA":"2026/10/18 11:00","Berth":"2026/10/18 18:12","OutVoyage":"W004","ETD":"2026/10/19 08:48","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"BUENAVENTURA","InVoyage":"E004","ETA":"2026/10/21 20:30","Berth":"2026/10/21 23:42","OutVoyage":"W004","ETD":"2026/10/22 22:54","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"CALLAO","InVoyage":"E004","ETA":"2026/10/25 20:00","Berth":"2026/10/26 01:00","OutVoyage":"W004","ETD":"2026/10/27 13:06","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"VALPARAISO","InVoyage":"E004","ETA":"2026/10/30 20:00","Berth":"2026/10/30 22:18","OutVoyage":"W004","ETD":"2026/10/31 21:54","Status":"ACTUAL"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"NINGBO","InVoyage":"W004","ETA":"2026/11/25 17:00","Berth":"-","OutVoyage":"E005","ETD":"2026/11/27 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"SHANGHAI","InVoyage":"W004","ETA":"2026/11/27 14:00","Berth":"-","OutVoyage":"E005","ETD":"2026/11/29 14:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"QINGDAO","InVoyage":"W004","ETA":"2026/11/30 22:00","Berth":"-","OutVoyage":"E005","ETD":"2026/12/02 22:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"BUSAN NEW PORT","InVoyage":"W004","ETA":"2026/12/02 22:00","Berth":"-","OutVoyage":"E005","ETD":"2026/12/02 22:00","Status":"SKIP"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"ENSENADA","InVoyage":"E005","ETA":"2026/12/16 06:00","Berth":"-","OutVoyage":"W005","ETD":"2026/12/17 04:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"MANZANILLO","InVoyage":"E005","ETA":"2026/12/19 21:00","Berth":"-","OutVoyage":"W005","ETD":"2026/12/21 10:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"LAZARO CARDENAS","InVoyage":"E005","ETA":"2026/12/21 10:00","Berth":"-","OutVoyage":"W005","ETD":"2026/12/21 10:00","Status":"SKIP"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"PUERTO QUETZAL","InVoyage":"E005","ETA":"2026/12/23 12:00","Berth":"-","OutVoyage":"W005","ETD":"2026/12/25 23:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"BUENAVENTURA","InVoyage":"E005","ETA":"2026/12/28 15:00","Berth":"-","OutVoyage":"W005","ETD":"2026/12/29 20:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"CALLAO","InVoyage":"E005","ETA":"2027/01/02 12:00","Berth":"-","OutVoyage":"W005","ETD":"2027/01/03 11:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V01","VesselCode":"V01","Lane":"Asia - South America II Service (AS2)","Port":"SAN ANTONIO","InVoyage":"E005","ETA":"2027/01/07 03:00","Berth":"-","OutVoyage":"W005","ETD":"2027/01/08 15:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"SHEKOU","InVoyage":"","ETA":"2026/07/08 01:30","Berth":"2026/07/08 06:24","OutVoyage":"E003","ETD":"2026/07/09 19:42","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"HONG KONG","InVoyage":"W002","ETA":"2026/07/09 20:42","Berth":"2026/07/09 22:24","OutVoyage":"E003","ETD":"2026/07/10 20:12","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"NINGBO","InVoyage":"W002","ETA":"2026/07/14 08:00","Berth":"2026/07/15 01:06","OutVoyage":"E003","ETD":"2026/07/15 18:48","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"SHANGHAI","InVoyage":"W002","ETA":"2026/07/16 03:30","Berth":"2026/07/20 14:48","OutVoyage":"E003","ETD":"2026/07/21 12:06","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"E003","ETA":"2026/08/06 12:00","Berth":"2026/08/06 13:42","OutVoyage":"E003","ETD":"2026/08/07 16:18","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"LAZARO CARDENAS","InVoyage":"E003","ETA":"2026/08/08 09:00","Berth":"2026/08/11 12:36","OutVoyage":"W003","ETD":"2026/08/12 01:30","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"PUERTO QUETZAL","InVoyage":"E003","ETA":"2026/08/13 19:00","Berth":"2026/08/13 21:24","OutVoyage":"W003","ETD":"2026/08/15 07:12","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"CALLAO","InVoyage":"E003","ETA":"2026/08/21 22:30","Berth":"2026/08/22 02:36","OutVoyage":"W003","ETD":"2026/08/23 05:18","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"GUAYAQUIL","InVoyage":"E003","ETA":"2026/08/25 07:00","Berth":"2026/08/25 16:54","OutVoyage":"W003","ETD":"2026/08/28 13:42","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"W003","ETA":"2026/09/02 09:00","Berth":"2026/09/02 10:48","OutVoyage":"W003","ETD":"2026/09/04 06:00","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"BUSAN NEW PORT","InVoyage":"W003","ETA":"2026/09/14 01:00","Berth":"-","OutVoyage":"W003","ETD":"2026/09/15 02:00","Status":"SKIP"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"KAOHSIUNG","InVoyage":"W003","ETA":"2026/09/22 21:12","Berth":"2026/09/23 00:12","OutVoyage":"E004","ETD":"2026/09/24 07:24","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"SHEKOU","InVoyage":"W003","ETA":"2026/09/27 08:00","Berth":"2026/09/27 12:00","OutVoyage":"E004","ETD":"2026/09/29 11:54","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"HONG KONG","InVoyage":"W003","ETA":"2026/09/29 13:24","Berth":"2026/09/29 14:48","OutVoyage":"E004","ETD":"2026/09/30 22:48","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"NINGBO","InVoyage":"W003","ETA":"2026/09/30 22:48","Berth":"-","OutVoyage":"E004","ETD":"2026/09/30 22:48","Status":"SKIP"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"SHANGHAI","InVoyage":"W003","ETA":"2026/10/04 09:00","Berth":"2026/10/05 00:12","OutVoyage":"E004","ETD":"2026/10/06 09:48","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"E004","ETA":"2026/10/22 07:00","Berth":"2026/10/24 00:06","OutVoyage":"E004","ETD":"2026/10/25 11:42","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"LAZARO CARDENAS","InVoyage":"E004","ETA":"2026/10/26 06:00","Berth":"2026/10/30 10:12","OutVoyage":"W004","ETD":"2026/10/31 16:18","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"PUERTO QUETZAL","InVoyage":"E004","ETA":"2026/11/02 22:00","Berth":"2026/11/03 00:18","OutVoyage":"W004","ETD":"2026/11/03 23:24","Status":"ACTUAL"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"CALLAO","InVoyage":"E004","ETA":"2026/11/08 03:42","Berth":"2026/11/08 09:30","OutVoyage":"W004","ETD":"2026/11/09 01:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"GUAYAQUIL","InVoyage":"E004","ETA":"2026/11/11 02:00","Berth":"2026/11/14 09:00","OutVoyage":"W004","ETD":"2026/11/14 22:30","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"W004","ETA":"2026/11/19 18:00","Berth":"-","OutVoyage":"W004","ETD":"2026/11/21 18:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"BUSAN NEW PORT","InVoyage":"W004","ETA":"2026/11/24 09:30","Berth":"-","OutVoyage":"W004","ETD":"2026/11/24 09:30","Status":"SKIP"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"KAOHSIUNG","InVoyage":"W004","ETA":"2026/12/09 00:00","Berth":"-","OutVoyage":"E005","ETD":"2026/12/11 04:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"SHEKOU","InVoyage":"W004","ETA":"2026/12/12 03:00","Berth":"-","OutVoyage":"E005","ETD":"2026/12/13 22:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"HONG KONG","InVoyage":"W004","ETA":"2026/12/14 02:00","Berth":"-","OutVoyage":"E005","ETD":"2026/12/14 17:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"NINGBO","InVoyage":"W004","ETA":"2026/12/16 12:00","Berth":"-","OutVoyage":"E005","ETD":"2026/12/17 21:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"SHANGHAI","InVoyage":"W004","ETA":"2026/12/18 07:00","Berth":"-","OutVoyage":"E005","ETD":"2026/12/19 17:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"E005","ETA":"2027/01/04 17:00","Berth":"-","OutVoyage":"E005","ETD":"2027/01/06 13:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"LAZARO CARDENAS","InVoyage":"E005","ETA":"2027/01/07 04:00","Berth":"-","OutVoyage":"W005","ETD":"2027/01/08 00:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"PUERTO QUETZAL","InVoyage":"E005","ETA":"2027/01/09 20:00","Berth":"-","OutVoyage":"W005","ETD":"2027/01/11 04:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"CALLAO","InVoyage":"E005","ETA":"2027/01/16 10:00","Berth":"-","OutVoyage":"W005","ETD":"2027/01/17 11:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"GUAYAQUIL","InVoyage":"E005","ETA":"2027/01/19 12:00","Berth":"-","OutVoyage":"W005","ETD":"2027/01/22 09:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"MANZANILLO","InVoyage":"W005","ETA":"2027/01/28 22:00","Berth":"-","OutVoyage":"W005","ETD":"2027/01/31 04:00","Status":"ESTIMATED"},{"VesselName":"WAN HAI V02","VesselCode":"V02","Lane":"Asia - South America Service (ASA)","Port":"BUSAN NEW PORT","InVoyage":"W005","ETA":"2027/02/20 11:00","Berth":"-","OutVoyage":"W005","ETD":"2027/02/21 12:00","Status":"ESTIMATED"}];
+        const injectedPorts = [{"Code":"KAO","NameZh":"高雄","Port":"KAOHSIUNG"},{"Code":"TPE","NameZh":"台北","Port":"TAIPEI"},{"Code":"SIN","NameZh":"新加坡","Port":"SINGAPORE"},{"Code":"FOC","NameZh":"福州港","Port":"JIANGYIN,FUJIAN CHINA"},{"Code":"NSA","NameZh":"南沙新港","Port":"NANSHA NEW PORT"},{"Code":"NGB","NameZh":"寧波","Port":"NINGBO"},{"Code":"SHA","NameZh":"上海","Port":"SHANGHAI"},{"Code":"SHK","NameZh":"蛇口","Port":"SHEKOU"},{"Code":"QGD","NameZh":"青島","Port":"QINGDAO"},{"Code":"HKG","NameZh":"香港","Port":"HONG KONG"},{"Code":"XMN","NameZh":"廈門","Port":"XIAMEN"}];
+
+        // 預設目標港口清單 (支援容錯回退)
+        const defaultTargetPorts = [
+            { Code: "KAO", NameZh: "高雄", Port: "KAOHSIUNG" },
+            { Code: "TPE", NameZh: "台北", Port: "TAIPEI" },
+            { Code: "SIN", NameZh: "新加坡", Port: "SINGAPORE" },
+            { Code: "FOC", NameZh: "福州港", Port: "JIANGYIN,FUJIAN CHINA" },
+            { Code: "NSA", NameZh: "南沙新港", Port: "NANSHA NEW PORT" },
+            { Code: "NGB", NameZh: "寧波", Port: "NINGBO" },
+            { Code: "SHA", NameZh: "上海", Port: "SHANGHAI" },
+            { Code: "SHK", NameZh: "蛇口", Port: "SHEKOU" },
+            { Code: "QGD", NameZh: "青島", Port: "QINGDAO" },
+            { Code: "HKG", NameZh: "香港", Port: "HONG KONG" },
+            { Code: "XMN", NameZh: "廈門", Port: "XIAMEN" }
+        ];
+
+        const targetPorts = (Array.isArray(injectedPorts) && injectedPorts.length > 0)
+            ? injectedPorts
+            : defaultTargetPorts;
+
+        // 建立港口字典映射 (以大寫英文 Port 名為 Key)
+        const targetPortMap = new Map();
+        targetPorts.forEach(p => {
+            if (p.Port) {
+                targetPortMap.set(p.Port.toUpperCase().trim(), p);
+            }
+        });
+
+        // 當前基準日 (今日 00:00:00)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        document.getElementById('todayDateStr').textContent = today.toLocaleDateString('zh-TW', {
+            year: 'numeric', month: '2-digit', day: '2-digit'
+        });
+
+        // 日期解析輔助函式
+        function parseScheduleDate(str) {
+            if (!str || str === '-' || String(str).toUpperCase() === 'SKIP') return null;
+            const m = String(str).trim().match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2}))?/);
+            if (!m) return null;
+            return new Date(
+                parseInt(m[1], 10),
+                parseInt(m[2], 10) - 1,
+                parseInt(m[3], 10),
+                m[4] !== undefined ? parseInt(m[4], 10) : 0,
+                m[5] !== undefined ? parseInt(m[5], 10) : 0
+            );
+        }
+
+        // DataTables 實例與篩選狀態
+        let focusDataTable = null;
+        let allDataTable = null;
+        let focusCarrierFilter = 'ALL';
+        let focusPortFilter = 'ALL';
+        let allCarrierFilter = 'ALL';
+
+        // 繁體中文語系包
+        const dtLanguageZh = {
+            search: "🔍 快速搜尋：",
+            lengthMenu: "每頁顯示 _MENU_ 筆",
+            info: "顯示第 _START_ 至 _END_ 筆，共 _TOTAL_ 筆紀錄",
+            infoEmpty: "無符合紀錄",
+            infoFiltered: "(自 _MAX_ 筆資料中篩選)",
+            zeroRecords: "查無相符的船期紀錄",
+            paginate: {
+                first: "第一頁",
+                previous: "上一頁",
+                next: "下一頁",
+                last: "最後一頁"
+            }
+        };
+
+        // 格式化狀態 Badge
+        function formatStatusBadge(status) {
+            const val = status || '-';
+            const sUpper = String(val).toUpperCase();
+            let badgeClass = 'badge-status';
+            if (sUpper.includes('ACTUAL')) badgeClass += ' status-actual';
+            else if (sUpper.includes('EST') || sUpper.includes('PLAN')) badgeClass += ' status-estimated';
+            else if (sUpper.includes('SKIP')) badgeClass += ' status-skip';
+            return `<span class="${badgeClass}">${escapeHtml(val)}</span>`;
+        }
+
+        // 格式化船公司 Badge
+        function formatCarrierBadge(carrier) {
+            const val = carrier || '-';
+            let cClass = 'carrier-tag';
+            if (String(val).includes('陽明') || String(val).includes('YML')) cClass += ' carrier-yml';
+            if (String(val).includes('萬海') || String(val).includes('WHL')) cClass += ' carrier-whl';
+            return `<span class="${cClass}">${escapeHtml(val)}</span>`;
+        }
+
+        // 計算倒數天數或狀態
+        function formatCountdown(targetDate) {
+            if (!targetDate) return '-';
+            const now = new Date();
+            const diffMs = targetDate.getTime() - now.getTime();
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+            if (diffDays <= 0) {
+                return '<span class="countdown-tag countdown-urgent">已抵達 / 今日</span>';
+            } else if (diffDays === 1) {
+                return '<span class="countdown-tag countdown-urgent">明天</span>';
+            } else if (diffDays <= 3) {
+                return `<span class="countdown-tag countdown-soon">${diffDays} 天後</span>`;
+            } else {
+                return `<span class="countdown-tag countdown-normal">${diffDays} 天後</span>`;
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ======================= 初始化 TAB 1: 重點港口近期待泊 =======================
+        function initFocusTab() {
+            // 產生港口 Chips
+            const chipsContainer = document.getElementById('portChipsContainer');
+            targetPorts.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-chip';
+                btn.textContent = `${p.NameZh} (${p.Code || p.Port})`;
+                btn.dataset.port = p.Port.toUpperCase().trim();
+                btn.onclick = () => setFocusPortFilter(p.Port.toUpperCase().trim(), btn);
+                chipsContainer.appendChild(btn);
+            });
+
+            // 核心演算法：港口白名單 + ≧ 今天 + 每船每港取離今天最近 1 筆
+            const candidates = [];
+            rawData.forEach(r => {
+                const pUpper = (r.Port || '').toUpperCase().trim();
+                if (!targetPortMap.has(pUpper)) return;
+
+                const portMeta = targetPortMap.get(pUpper);
+                const arrDate = parseScheduleDate(r.Arrival);
+                const depDate = parseScheduleDate(r.Departure);
+                const effectiveDate = arrDate || depDate;
+
+                // 排除小於今天的歷史資料 (例如 10/19, 11/06 等)
+                if (!effectiveDate || effectiveDate < today) return;
+
+                candidates.push({
+                    record: r,
+                    date: effectiveDate,
+                    portMeta: portMeta
+                });
+            });
+
+            // 依時間由小到大排序 (離今天最近的排前面)
+            candidates.sort((a, b) => a.date - b.date);
+
+            // 分組去重：每艘船 + 每個目標港口 僅保留第一筆 (最近一筆)
+            const uniqueMap = new Map();
+            candidates.forEach(c => {
+                const vesselKey = (c.record.VesselName || '').trim();
+                const portKey = c.portMeta.Port.toUpperCase().trim();
+                const compositeKey = `${vesselKey}___${portKey}`;
+
+                if (!uniqueMap.has(compositeKey)) {
+                    uniqueMap.set(compositeKey, c);
+                }
+            });
+
+            const focusRows = Array.from(uniqueMap.values());
+
+            // 取得船公司排序權重：萬海 (WHL) = 1 優先，陽明 (YML) = 2 次之
+            function getCarrierSortRank(carrier) {
+                const c = String(carrier || '').toUpperCase();
+                if (c.includes('萬海') || c.includes('WHL')) return 1;
+                if (c.includes('陽明') || c.includes('YML')) return 2;
+                return 3;
+            }
+
+            // 依「船公司 (萬海->陽明) -> 船名 -> 預計抵達時間」排序
+            focusRows.sort((a, b) => {
+                const rankA = getCarrierSortRank(a.record.Carrier);
+                const rankB = getCarrierSortRank(b.record.Carrier);
+                if (rankA !== rankB) return rankA - rankB;
+
+                const nameA = (a.record.VesselName || '').trim();
+                const nameB = (b.record.VesselName || '').trim();
+                const nameCmp = nameA.localeCompare(nameB, 'en');
+                if (nameCmp !== 0) return nameCmp;
+
+                return a.date - b.date;
+            });
+
+            document.getElementById('tabCounterFocus').textContent = focusRows.length;
+            document.getElementById('badgeFocusCount').textContent = `重點港口近期待泊：${focusRows.length} 筆`;
+
+            // 填充 Focus Table DOM
+            const tbody = document.getElementById('focusTableBody');
+            tbody.innerHTML = '';
+            focusRows.forEach(item => {
+                const r = item.record;
+                const meta = item.portMeta;
+                const carrierRank = getCarrierSortRank(r.Carrier);
+                const statusUpper = String(r.Status || '-').toUpperCase();
+                const tr = document.createElement('tr');
+                tr.dataset.carrier = r.Carrier || '';
+                tr.dataset.port = meta.Port.toUpperCase().trim();
+                tr.dataset.status = statusUpper;
+
+                tr.innerHTML = `
+                    <td data-order="${carrierRank}_${escapeHtml(r.Carrier || '')}">${formatCarrierBadge(r.Carrier)}</td>
+                    <td><span class="vessel-tag">${escapeHtml(r.VesselName || '')}</span></td>
+                    <td><span class="port-code-badge">${escapeHtml(meta.Code || '-')}</span></td>
+                    <td>
+                        <div class="port-badge">
+                            <span class="port-zh">${escapeHtml(meta.NameZh || '')}</span>
+                            <span>${escapeHtml(meta.Port)}</span>
+                        </div>
+                    </td>
+                    <td><strong>${escapeHtml(r.Arrival || '-')}</strong></td>
+                    <td>${formatStatusBadge(statusUpper)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 初始化 jQuery DataTables (預設先依 船公司[萬海->陽明]、再依 船名、再依 預計抵達時間 排序)
+            focusDataTable = $('#focusTable').DataTable({
+                language: dtLanguageZh,
+                pageLength: 100,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "全部"]],
+                order: [[0, 'asc'], [1, 'asc'], [4, 'asc']],
+                columnDefs: [
+                    { className: "dt-nowrap", targets: "_all" }
+                ],
+                responsive: false,
+                autoWidth: false
+            });
+        }
+
+        // ======================= 初始化 TAB 2: 全船隊完整明細 =======================
+        function initAllTab() {
+            document.getElementById('tabCounterAll').textContent = rawData.length;
+            document.getElementById('badgeTotalCount').textContent = `總船期紀錄：${rawData.length} 筆`;
+
+            if (rawData.length === 0) return;
+
+            const keys = Object.keys(rawData[0]);
+            const theadRow = document.getElementById('allTableHeader');
+            theadRow.innerHTML = '';
+            keys.forEach(k => {
+                const th = document.createElement('th');
+                th.textContent = k;
+                theadRow.appendChild(th);
+            });
+
+            const tbody = document.getElementById('allTableBody');
+            tbody.innerHTML = '';
+            rawData.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.dataset.carrier = r.Carrier || '';
+
+                keys.forEach(k => {
+                    const td = document.createElement('td');
+                    const val = r[k] || '-';
+                    if (k === 'Status' || k.includes('Status')) {
+                        td.innerHTML = formatStatusBadge(val);
+                    } else if (k === 'VesselName') {
+                        td.innerHTML = `<span class="vessel-tag">${escapeHtml(val)}</span>`;
+                    } else if (k === 'Carrier') {
+                        td.innerHTML = formatCarrierBadge(val);
+                    } else {
+                        td.textContent = val;
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+
+            allDataTable = $('#allTable').DataTable({
+                language: dtLanguageZh,
+                pageLength: 25,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "全部"]],
+                order: [], // 保持原始排序
+                responsive: false,
+                autoWidth: false
+            });
+        }
+
+        // ======================= 篩選與頁簽切換事件 =======================
+        function switchMainTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(sec => sec.classList.remove('active'));
+
+            if (tab === 'focus') {
+                document.getElementById('tabBtnFocus').classList.add('active');
+                document.getElementById('tabContentFocus').classList.add('active');
+                if (focusDataTable) focusDataTable.columns.adjust().draw(false);
+            } else {
+                document.getElementById('tabBtnAll').classList.add('active');
+                document.getElementById('tabContentAll').classList.add('active');
+                if (allDataTable) allDataTable.columns.adjust().draw(false);
+            }
+        }
+
+        function setFocusCarrierFilter(carrier, btn) {
+            focusCarrierFilter = carrier;
+            btn.parentElement.querySelectorAll('.btn-chip').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFocusFilters();
+        }
+
+        function setFocusPortFilter(port, btn) {
+            focusPortFilter = port;
+            btn.parentElement.querySelectorAll('.btn-chip').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyFocusFilters();
+        }
+
+        function applyFocusFilters() {
+            if (focusDataTable) {
+                focusDataTable.draw();
+            }
+        }
+
+        function setAllCarrierFilter(carrier, btn) {
+            allCarrierFilter = carrier;
+            btn.parentElement.querySelectorAll('.btn-chip').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            if (carrier === 'ALL') {
+                allDataTable.column(0).search('').draw();
+            } else {
+                allDataTable.column(0).search(carrier).draw();
+            }
+        }
+
+        // ======================= 純前端匯出 Excel (.xlsx) 與 CSV =======================
+        function getFormattedDateStamp() {
+            const d = new Date();
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            const hh = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            return `${yyyy}${mm}${dd}_${hh}${min}`;
+        }
+
+        // 從 DataTable 擷取當前篩選與排序後的純文字二維陣列 (含表頭)
+        function extractTableMatrix(tabType) {
+            const dt = (tabType === 'focus') ? focusDataTable : allDataTable;
+            const tableEl = document.getElementById(tabType === 'focus' ? 'focusTable' : 'allTable');
+            if (!dt || !tableEl) return [];
+
+            // 1. 取得表頭
+            const headers = [];
+            tableEl.querySelectorAll('thead th').forEach(th => {
+                headers.push(th.innerText.trim());
+            });
+
+            // 2. 取得目前篩選後 (search: 'applied') 且依當前排序 (order: 'applied') 的資料列
+            const rows = [headers];
+            const trNodes = dt.rows({ search: 'applied', order: 'applied' }).nodes();
+
+            for (let i = 0; i < trNodes.length; i++) {
+                const tr = trNodes[i];
+                const rowCells = [];
+                tr.querySelectorAll('td').forEach(td => {
+                    // 將換行或多餘空白壓縮為單一空白
+                    rowCells.push(td.innerText.replace(/\s+/g, ' ').trim());
+                });
+                rows.push(rowCells);
+            }
+            return rows;
+        }
+
+        // 自動計算最佳 Excel 欄寬
+        function autoFitColumns(aoa) {
+            if (!aoa || aoa.length === 0) return [];
+            const colCount = aoa[0].length;
+            const colWidths = new Array(colCount).fill(10);
+
+            aoa.forEach(row => {
+                row.forEach((cell, colIdx) => {
+                    const str = String(cell || '');
+                    // 中文字元寬度以 2 倍計算
+                    let len = 0;
+                    for (let i = 0; i < str.length; i++) {
+                        len += (str.charCodeAt(i) > 255) ? 2.1 : 1.1;
+                    }
+                    if (len > colWidths[colIdx]) {
+                        colWidths[colIdx] = Math.min(len + 3, 48);
+                    }
+                });
+            });
+            return colWidths.map(w => ({ wch: Math.ceil(w) }));
+        }
+
+        // 匯出單一頁簽目前篩選結果為 Excel (.xlsx)
+        function exportTableToExcel(tabType) {
+            const matrix = extractTableMatrix(tabType);
+            if (matrix.length <= 1) {
+                alert('目前篩選條件下無資料可供匯出！');
+                return;
+            }
+
+            const sheetName = (tabType === 'focus') ? '重點港口近期待泊' : '全船隊完整明細';
+            const filePrefix = (tabType === 'focus') ? '重點港口近期船期' : '全船隊完整船期';
+            const fileName = `${filePrefix}_${getFormattedDateStamp()}.xlsx`;
+
+            if (typeof XLSX !== 'undefined') {
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(matrix);
+                ws['!cols'] = autoFitColumns(matrix);
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                XLSX.writeFile(wb, fileName);
+            } else {
+                // 離線無 CDN 備援：自動轉匯出含 BOM 之 CSV (Excel 可直接開啟)
+                exportTableToCsv(tabType);
+            }
+        }
+
+        // 匯出雙頁簽完整工作簿 Excel (.xlsx，同時包含兩個工作表)
+        function exportFullWorkbook() {
+            const focusMatrix = extractTableMatrix('focus');
+            const allMatrix = extractTableMatrix('all');
+
+            if (typeof XLSX === 'undefined') {
+                alert('無法載入 XLSX 引擎，將為您匯出 CSV 格式。');
+                exportTableToCsv('focus');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+
+            if (focusMatrix.length > 0) {
+                const wsFocus = XLSX.utils.aoa_to_sheet(focusMatrix);
+                wsFocus['!cols'] = autoFitColumns(focusMatrix);
+                XLSX.utils.book_append_sheet(wb, wsFocus, '重點港口近期待泊');
+            }
+
+            if (allMatrix.length > 0) {
+                const wsAll = XLSX.utils.aoa_to_sheet(allMatrix);
+                wsAll['!cols'] = autoFitColumns(allMatrix);
+                XLSX.utils.book_append_sheet(wb, wsAll, '全船隊完整明細');
+            }
+
+            const fileName = `全船隊船期報表_${getFormattedDateStamp()}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        // 匯出當前篩選結果為 CSV (UTF-8 with BOM，Excel 直接開啟不亂碼)
+        function exportTableToCsv(tabType) {
+            const matrix = extractTableMatrix(tabType);
+            if (matrix.length <= 1) {
+                alert('目前篩選條件下無資料可供匯出！');
+                return;
+            }
+
+            const csvLines = matrix.map(row =>
+                row.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')
+            );
+            // 加上 \uFEFF UTF-8 BOM 確保 Excel 開啟中文不亂碼
+            const csvContent = '\uFEFF' + csvLines.join('\r\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+            const filePrefix = (tabType === 'focus') ? '重點港口近期船期' : '全船隊完整船期';
+            const fileName = `${filePrefix}_${getFormattedDateStamp()}.csv`;
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+
+        // 頁面載入後初始化
+        $(document).ready(function() {
+            // 註冊 Focus Table 專屬自訂複合篩選器 (常駐生效)
+            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                if (settings.nTable.id !== 'focusTable' || !focusDataTable) return true;
+
+                const tr = focusDataTable.row(dataIndex).node();
+                if (!tr) return true;
+
+                const rowCarrier = tr.dataset.carrier || '';
+                const rowPort = tr.dataset.port || '';
+                const rowStatus = tr.dataset.status || '';
+                const hideSkip = document.getElementById('chkFocusHideSkip').checked;
+
+                if (focusCarrierFilter !== 'ALL' && !rowCarrier.includes(focusCarrierFilter)) {
+                    return false;
+                }
+                if (focusPortFilter !== 'ALL' && rowPort !== focusPortFilter) {
+                    return false;
+                }
+                if (hideSkip && rowStatus.includes('SKIP')) {
+                    return false;
+                }
+                return true;
+            });
+
+            initFocusTab();
+            initAllTab();
+        });
+    </script>
+</body>
+</html>
