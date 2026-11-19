@@ -25,6 +25,8 @@
             --status-est-text: #0369a1;
             --status-skip-bg: #fee2e2;
             --status-skip-text: #b91c1c;
+            --status-nodata-bg: #fef3c7;
+            --status-nodata-text: #b45309;
         }
 
         * {
@@ -356,6 +358,12 @@
             color: var(--status-skip-text);
         }
 
+        .status-nodata {
+            background-color: var(--status-nodata-bg);
+            color: var(--status-nodata-text);
+            font-weight: 600;
+        }
+
         .vessel-tag {
             font-weight: 600;
             color: #0369a1;
@@ -475,7 +483,7 @@
         <header>
             <div class="header-title">
                 <h1>🚢 萬海航運每週船期即時報表 (Wan Hai Schedule)</h1>
-                <p>資料更新時間：<strong>2026-11-13 01:53:56</strong> | 來源檔案：<strong>wanhai_schedule.csv</strong></p>
+                <p>資料更新時間：<strong>2026-11-19 14:08:36</strong> | 來源檔案：<strong>wanhai_schedule.csv</strong></p>
             </div>
             <div class="header-badges">
                 <div class="stats-badge highlight" id="badgeFocusCount">重點港口近期待泊：計算中...</div>
@@ -660,7 +668,7 @@
             info: "顯示第 _START_ 至 _END_ 筆，共 _TOTAL_ 筆紀錄",
             infoEmpty: "無符合紀錄",
             infoFiltered: "(自 _MAX_ 筆資料中篩選)",
-            zeroRecords: "查無相符的船期紀錄",
+            zeroRecords: "⚠️ 找不到符合的船期資料",
             paginate: {
                 first: "第一頁",
                 previous: "上一頁",
@@ -677,6 +685,7 @@
             if (sUpper.includes('ACTUAL')) badgeClass += ' status-actual';
             else if (sUpper.includes('EST') || sUpper.includes('PLAN')) badgeClass += ' status-estimated';
             else if (sUpper.includes('SKIP')) badgeClass += ' status-skip';
+            else if (sUpper.includes('NO DATA') || sUpper.includes('查無')) badgeClass += ' status-nodata';
             return `<span class="${badgeClass}">${escapeHtml(val)}</span>`;
         }
 
