@@ -483,7 +483,7 @@
         <header>
             <div class="header-title">
                 <h1>🚢 萬海航運每週船期即時報表 (Wan Hai Schedule)</h1>
-                <p>資料更新時間：<strong>2026-11-19 14:08:36</strong> | 來源檔案：<strong>wanhai_schedule.csv</strong></p>
+                <p>資料更新時間：<strong>2026-11-27 11:07:40</strong> | 來源檔案：<strong>wanhai_schedule.csv</strong></p>
             </div>
             <div class="header-badges">
                 <div class="stats-badge highlight" id="badgeFocusCount">重點港口近期待泊：計算中...</div>
@@ -724,6 +724,44 @@
                 .replace(/"/g, '&quot;');
         }
 
+        // 取得船公司排序權重：萬海 (WHL) = 1 優先，陽明 (YML) = 2 次之
+        function getCarrierSortRank(carrier) {
+            const c = String(carrier || '').toUpperCase();
+            if (c.includes('萬海') || c.includes('WHL')) return 1;
+            if (c.includes('陽明') || c.includes('YML')) return 2;
+            return 3;
+        }
+
+        // 船隻排序自訂權重 (陽明海運嚴格指定順序: 1.YM CELEBRITY, 2.YM INCREMENT, 3.YM PLUM, 4.INTERASIA ELEVATE)
+        const VESSEL_SORT_ORDER = [
+            'YM CELEBRITY',
+            'YM INCREMENT',
+            'YM PLUM',
+            'INTERASIA ELEVATE',
+            'WAN HAI 276',
+            'WAN HAI 309',
+            'WAN HAI 317',
+            'WAN HAI 521',
+            'WAN HAI 522',
+            'WAN HAI 523',
+            'WAN HAI 621',
+            'WAN HAI 626',
+            'WAN HAI A01',
+            'WAN HAI A02',
+            'WAN HAI V01',
+            'WAN HAI V02'
+        ];
+
+        function getVesselSortRank(vesselName) {
+            const upper = String(vesselName || '').toUpperCase().trim();
+            for (let i = 0; i < VESSEL_SORT_ORDER.length; i++) {
+                if (upper.includes(VESSEL_SORT_ORDER[i])) {
+                    return i + 1;
+                }
+            }
+            return 999;
+        }
+
         // ======================= 初始化 TAB 1: 重點港口近期待泊 =======================
         function initFocusTab() {
             // 產生港口 Chips
@@ -775,24 +813,15 @@
 
             const focusRows = Array.from(uniqueMap.values());
 
-            // 取得船公司排序權重：萬海 (WHL) = 1 優先，陽明 (YML) = 2 次之
-            function getCarrierSortRank(carrier) {
-                const c = String(carrier || '').toUpperCase();
-                if (c.includes('萬海') || c.includes('WHL')) return 1;
-                if (c.includes('陽明') || c.includes('YML')) return 2;
-                return 3;
-            }
-
-            // 依「船公司 (萬海->陽明) -> 船名 -> 預計抵達時間」排序
+            // 依「船公司 (萬海->陽明) -> 船名自訂順序 -> 預計抵達時間」排序
             focusRows.sort((a, b) => {
                 const rankA = getCarrierSortRank(a.record.Carrier);
                 const rankB = getCarrierSortRank(b.record.Carrier);
                 if (rankA !== rankB) return rankA - rankB;
 
-                const nameA = (a.record.VesselName || '').trim();
-                const nameB = (b.record.VesselName || '').trim();
-                const nameCmp = nameA.localeCompare(nameB, 'en');
-                if (nameCmp !== 0) return nameCmp;
+                const vRankA = getVesselSortRank(a.record.VesselName);
+                const vRankB = getVesselSortRank(b.record.VesselName);
+                if (vRankA !== vRankB) return vRankA - vRankB;
 
                 return a.date - b.date;
             });
@@ -807,6 +836,7 @@
                 const r = item.record;
                 const meta = item.portMeta;
                 const carrierRank = getCarrierSortRank(r.Carrier);
+                const vesselRank = String(getVesselSortRank(r.VesselName)).padStart(3, '0');
                 const statusUpper = String(r.Status || '-').toUpperCase();
                 const tr = document.createElement('tr');
                 tr.dataset.carrier = r.Carrier || '';
@@ -815,7 +845,7 @@
 
                 tr.innerHTML = `
                     <td data-order="${carrierRank}_${escapeHtml(r.Carrier || '')}">${formatCarrierBadge(r.Carrier)}</td>
-                    <td><span class="vessel-tag">${escapeHtml(r.VesselName || '')}</span></td>
+                    <td data-order="${vesselRank}_${escapeHtml(r.VesselName || '')}"><span class="vessel-tag">${escapeHtml(r.VesselName || '')}</span></td>
                     <td><span class="port-code-badge">${escapeHtml(meta.Code || '-')}</span></td>
                     <td>
                         <div class="port-badge">
@@ -871,8 +901,12 @@
                     if (k === 'Status' || k.includes('Status')) {
                         td.innerHTML = formatStatusBadge(val);
                     } else if (k === 'VesselName') {
+                        const vRank = String(getVesselSortRank(val)).padStart(3, '0');
+                        td.setAttribute('data-order', `${vRank}_${val}`);
                         td.innerHTML = `<span class="vessel-tag">${escapeHtml(val)}</span>`;
                     } else if (k === 'Carrier') {
+                        const carrierRank = getCarrierSortRank(val);
+                        td.setAttribute('data-order', `${carrierRank}_${val}`);
                         td.innerHTML = formatCarrierBadge(val);
                     } else {
                         td.textContent = val;
